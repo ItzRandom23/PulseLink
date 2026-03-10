@@ -1,6 +1,6 @@
 # PulseLink
 
-PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple music services and mirrors playback through your own providers (for example Spotify search). Some sources also support direct playback.
+PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple music services and mirrors playback through your own providers (for example YouTube search). Some sources also support direct playback.
 
 ## Quick Start
 

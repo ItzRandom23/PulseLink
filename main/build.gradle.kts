@@ -9,7 +9,6 @@ base {
 }
 
 java {
-    withJavadocJar()
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_17
 }
@@ -46,6 +45,10 @@ kotlin {
 }
 
 tasks.withType<Javadoc>().configureEach {
+    enabled = false
+}
+
+tasks.matching { it.name == "javadocJar" }.configureEach {
     enabled = false
 }
 
