@@ -1,7 +1,7 @@
 package com.github.itzrandom23.pulselink.deezer;
 
 import com.github.itzrandom23.pulselink.ExtendedAudioTrack;
-import com.github.itzrandom23.pulselink.PulseLinkTools;
+import com.github.itzrandom23.pulselink.LavaSrcTools;
 import com.sedmelluq.discord.lavaplayer.container.flac.FlacAudioTrack;
 import com.sedmelluq.discord.lavaplayer.container.mp3.Mp3AudioTrack;
 import com.sedmelluq.discord.lavaplayer.container.mpeg.MpegAudioTrack;
@@ -62,7 +62,7 @@ public class DeezerAudioTrack extends ExtendedAudioTrack {
 	private Tokens getTokens(HttpInterface httpInterface) throws IOException {
 		var request = new HttpGet(DeezerAudioSourceManager.PRIVATE_API_BASE + "?method=deezer.getUserData&input=3&api_version=1.0&api_token=");
 
-		var json = PulseLinkTools.fetchResponseAsJson(httpInterface, request);
+		var json = LavaSrcTools.fetchResponseAsJson(httpInterface, request);
 		DeezerAudioSourceManager.checkResponse(json, "Failed to get user token");
 
 		return new Tokens(
@@ -74,7 +74,7 @@ public class DeezerAudioTrack extends ExtendedAudioTrack {
 	public SourceWithFormat getSource(HttpInterface httpInterface, String apiToken, String licenseToken) throws IOException, URISyntaxException {
 		var getTrackToken = new HttpPost(DeezerAudioSourceManager.PRIVATE_API_BASE + "?method=song.getData&input=3&api_version=1.0&api_token=" + apiToken);
 		getTrackToken.setEntity(new StringEntity("{\"sng_id\":\"" + this.trackInfo.identifier + "\"}", ContentType.APPLICATION_JSON));
-		var trackTokenJson = PulseLinkTools.fetchResponseAsJson(httpInterface, getTrackToken);
+		var trackTokenJson = LavaSrcTools.fetchResponseAsJson(httpInterface, getTrackToken);
 		DeezerAudioSourceManager.checkResponse(trackTokenJson, "Failed to get track token");
 
 		var trackToken = trackTokenJson.get("results").get("TRACK_TOKEN").text();
@@ -82,7 +82,7 @@ public class DeezerAudioTrack extends ExtendedAudioTrack {
 		var getMediaURL = new HttpPost(DeezerAudioSourceManager.MEDIA_BASE + "/get_url");
 		getMediaURL.setEntity(new StringEntity("{\"license_token\":\"" + licenseToken + "\",\"media\":[{\"type\":\"FULL\",\"formats\":[" + formatFormats(this.sourceManager.getFormats()) + "]}],\"track_tokens\": [\"" + trackToken + "\"]}", ContentType.APPLICATION_JSON));
 
-		var json = PulseLinkTools.fetchResponseAsJson(httpInterface, getMediaURL);
+		var json = LavaSrcTools.fetchResponseAsJson(httpInterface, getMediaURL);
 		DeezerAudioSourceManager.checkResponse(json, "Failed to get media URL");
 
 		return SourceWithFormat.fromResponse(json, trackTokenJson);

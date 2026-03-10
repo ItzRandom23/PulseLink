@@ -45,6 +45,10 @@ kotlin {
     jvmToolchain(17)
 }
 
+tasks.withType<Javadoc>().configureEach {
+    enabled = false
+}
+
 fun DependencyHandlerScope.lyricsDependency(module: String) {
     implementation("dev.schlaubi.lyrics", "$module-jvm", "2.5.0") {
         isTransitive = false

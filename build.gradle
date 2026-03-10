@@ -57,6 +57,10 @@ subprojects {
         }
     }
 
+    tasks.withType(Javadoc).configureEach {
+        enabled = false
+    }
+
     publishing {
         repositories {
             if (isGithubPackagesDefined) {
