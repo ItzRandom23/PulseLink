@@ -62,6 +62,6 @@ jobs:
           context: .
           platforms: ${{ matrix.platforms }}
           push: true
-          tags: ghcr.io/topi314/lavasrc:${{ matrix.tag }}
+          tags: ghcr.io/itzrandom23/pulselink:${{ matrix.tag }}
           build-args: |
             TAG=${{ matrix.tag }}
