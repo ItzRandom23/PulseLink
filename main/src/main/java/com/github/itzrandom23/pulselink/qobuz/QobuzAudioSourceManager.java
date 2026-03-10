@@ -54,14 +54,14 @@ public class QobuzAudioSourceManager extends MirroringAudioSourceManager impleme
 	}
 
 	public QobuzAudioSourceManager(String[] providers, AudioPlayerManager audioPlayerManager, MirroringAudioTrackResolver resolver) {
-		this(audioPlayerManager, resolver, null, null, null);
+		this(unused -> audioPlayerManager, resolver, null, null, null);
 	}
 
 	public QobuzAudioSourceManager(String[] providers, Function<Void, AudioPlayerManager> audioPlayerManager, String userOauthToken, String appId, String appSecret) {
-		this(audioPlayerManager.apply(null), new DefaultMirroringAudioTrackResolver(providers), userOauthToken, appId, appSecret);
+		this(audioPlayerManager, new DefaultMirroringAudioTrackResolver(providers), userOauthToken, appId, appSecret);
 	}
 
-	public QobuzAudioSourceManager(AudioPlayerManager audioPlayerManager, MirroringAudioTrackResolver resolver, String userOauthToken, String appId, String appSecret) {
+	public QobuzAudioSourceManager(Function<Void, AudioPlayerManager> audioPlayerManager, MirroringAudioTrackResolver resolver, String userOauthToken, String appId, String appSecret) {
 		super(audioPlayerManager, resolver);
 		this.tokenTracker = new QobuzTokenTracker(this, userOauthToken, appId, appSecret);
 	}

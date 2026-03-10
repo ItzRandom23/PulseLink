@@ -45,6 +45,8 @@ plugins:
       countryCode: "US"
       playlistLoadLimit: 6
       albumLoadLimit: 6
+      resolveArtistsInSearch: true
+      localFiles: false
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
