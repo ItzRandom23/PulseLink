@@ -1,6 +1,6 @@
 package com.github.itzrandom23.pulselink.deezer;
 
-import com.github.itzrandom23.pulselink.LavaSrcTools;
+import com.github.itzrandom23.pulselink.PulseLinkTools;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
@@ -50,7 +50,7 @@ public class DeezerTokenTracker {
 			);
 
 			var getUserToken = new HttpPost(DeezerAudioSourceManager.PRIVATE_API_BASE + "?method=deezer.getUserData&input=3&api_version=1.0&api_token=");
-			var json = LavaSrcTools.fetchResponseAsJson(httpInterface, getUserToken);
+			var json = PulseLinkTools.fetchResponseAsJson(httpInterface, getUserToken);
 			DeezerAudioSourceManager.checkResponse(json, "Failed to get user token");
 
 			String sessionID = null;
