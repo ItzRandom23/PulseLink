@@ -1,0 +1,38 @@
+plugins {
+    id "java-library"
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+}
+
+archivesBaseName = "pulselink-protocol"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvm {
+        compilations.all {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
+    js(IR) {
+        nodejs()
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                artifactId archivesBaseName
+            }
+        }
+    }
+
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+            }
+        }
+    }
+}

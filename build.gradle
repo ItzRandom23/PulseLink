@@ -1,0 +1,75 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.9.0" apply false
+    id "org.jetbrains.kotlin.plugin.serialization" version "1.9.0" apply false
+}
+allprojects {
+    group = "com.github.itzrandom23.pulselink"
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://maven.arbjerg.dev/releases" }
+        maven { url "https://maven.arbjerg.dev/snapshots" }
+        maven { url "https://jitpack.io" }
+        jcenter()
+    }
+}
+
+def getGitVersion() {
+    def versionStr = new ByteArrayOutputStream()
+    def result = exec {
+        standardOutput versionStr
+        errorOutput versionStr
+        ignoreExitValue true
+        commandLine "git", "describe", "--exact-match", "--tags"
+    }
+    if (result.exitValue == 0) {
+        return [versionStr.toString().trim(), false]
+    }
+
+
+    versionStr = new ByteArrayOutputStream()
+    exec {
+        standardOutput versionStr
+        errorOutput versionStr
+        commandLine "git", "rev-parse", "--short", "HEAD"
+    }
+
+    return [versionStr.toString().trim(), true]
+}
+
+var isMavenDefined = findProperty("MAVEN_USERNAME") != null && findProperty("MAVEN_PASSWORD") != null
+var isGithubPackagesDefined = findProperty("GITHUB_ACTOR") != null && findProperty("GITHUB_TOKEN") != null
+
+subprojects {
+    apply plugin: "java"
+    apply plugin: "maven-publish"
+
+    def versionStr = "1.0.0"
+    def isSnapshot = false
+    version versionStr
+    println "Version: " + versionStr
+
+    compileJava.options.encoding = "UTF-8"
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    publishing {
+        repositories {
+            if (isGithubPackagesDefined) {
+                System.out.println("Publishing to GitHub Packages")
+                maven {
+                    name = "GitHubPackages"
+                    url = "https://maven.pkg.github.com/ItzRandom23/PulseLink"
+                    credentials {
+                        username = findProperty("GITHUB_ACTOR")
+                        password = findProperty("GITHUB_TOKEN")
+                    }
+                }
+            }
+        }
+    }
+}

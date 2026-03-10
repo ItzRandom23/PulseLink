@@ -1,0 +1,66 @@
+plugins:
+  pulselink:
+    providers:
+      - "ytsearch:\"%ISRC%\""
+      - "ytsearch:%QUERY%"
+    sources:
+      spotify: true
+      applemusic: false
+      deezer: false
+      yandexmusic: false
+      vkmusic: false
+      tidal: false
+      qobuz: false
+      ytdlp: false
+      jiosaavn: false
+      audiomack: false
+      flowerytts: false
+      youtube: false
+    lyrics-sources:
+      deezer: false
+      youtube: false
+      yandexmusic: false
+      vkmusic: false
+      lrcLib: false
+    spotify:
+      countryCode: "US"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+    applemusic:
+      countryCode: "US"
+      mediaAPIToken: "your apple music api token"
+    deezer:
+      masterDecryptionKey: "your master decryption key"
+      arl: "your deezer arl"
+      formats: [ "FLAC", "MP3_320", "MP3_256", "MP3_128", "MP3_64", "AAC_64" ]
+    yandexmusic:
+      accessToken: "your access token"
+      playlistLoadLimit: 1
+      albumLoadLimit: 1
+      artistLoadLimit: 1
+    vkmusic:
+      userToken: "your user token"
+      playlistLoadLimit: 1
+      artistLoadLimit: 1
+      recommendationsLoadLimit: 10
+    tidal:
+      countryCode: "US"
+      searchLimit: 6
+      token: "your tidal token"
+    ytdlp:
+      path: "yt-dlp"
+      searchLimit: 10
+    jiosaavn:
+      decryption:
+        secretKey: "your secret key"
+    audiomack:
+      searchLimit: 10
+      artistTrackLimit: 25
+
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+  server:
+    password: "youshallnotpass"
