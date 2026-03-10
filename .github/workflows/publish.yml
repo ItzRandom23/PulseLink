@@ -34,14 +34,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build and Publish
-        run: ./gradlew build publish --no-daemon -PGITHUB_ACTOR=$GITHUB_ACTOR -PGITHUB_TOKEN=$GITHUB_TOKEN
+      - name: Build
+        run: ./gradlew build --no-daemon
 
-      - name: Upload main Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: PulseLink.jar
-          path: main/build/libs/pulselink-*.jar
+      - name: Publish Packages
+        if: github.event_name == 'release'
+        run: ./gradlew :plugin:publish --no-daemon -PGITHUB_ACTOR=$GITHUB_ACTOR -PGITHUB_TOKEN=$GITHUB_TOKEN
 
       - name: Upload plugin Artifact
         uses: actions/upload-artifact@v4
@@ -57,11 +55,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download main Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: PulseLink.jar
-
       - name: Download plugin Artifact
         uses: actions/download-artifact@v4
         with:
@@ -70,7 +63,7 @@ jobs:
       - name: Upload Artifacts to GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: pulselink-*.jar
+          artifacts: pulselink-plugin-*.jar
           allowUpdates: true
           omitBodyDuringUpdate: true
           omitDraftDuringUpdate: true

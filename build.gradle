@@ -74,4 +74,10 @@ subprojects {
             }
         }
     }
+
+    if (project.name != "plugin") {
+        tasks.matching { it.name.startsWith("publish") || it.name.startsWith("generatePomFileFor") }.configureEach {
+            enabled = false
+        }
+    }
 }

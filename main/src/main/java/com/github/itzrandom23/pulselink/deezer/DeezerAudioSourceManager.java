@@ -7,7 +7,7 @@ import com.github.topi314.lavasearch.AudioSearchManager;
 import com.github.topi314.lavasearch.result.AudioSearchResult;
 import com.github.topi314.lavasearch.result.BasicAudioSearchResult;
 import com.github.itzrandom23.pulselink.ExtendedAudioSourceManager;
-import com.github.itzrandom23.pulselink.PulseLinkTools;
+import com.github.itzrandom23.pulselink.LavaSrcTools;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
@@ -256,7 +256,7 @@ public class DeezerAudioSourceManager extends ExtendedAudioSourceManager impleme
 	public JsonBrowser getJson(String uri) throws IOException {
 		var request = new HttpGet(uri);
 		request.setHeader("Accept", "application/json");
-		return PulseLinkTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+		return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
 	}
 
 	private List<AudioTrack> parseTracks(JsonBrowser json, boolean preview) {
@@ -434,7 +434,7 @@ public class DeezerAudioSourceManager extends ExtendedAudioSourceManager impleme
 		request.setHeader("Content-Type", "application/json");
 		request.setEntity(new StringEntity(payload, StandardCharsets.UTF_8));
 
-		var result = PulseLinkTools.fetchResponseAsJson(this.getHttpInterface(), request);
+		var result = LavaSrcTools.fetchResponseAsJson(this.getHttpInterface(), request);
 		checkResponse(result, "Failed to get recommendations");
 
 		if (result.get("results").get("data").values().isEmpty()) {
