@@ -75,6 +75,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		YtdlpConfig ytdlpConfig,
 		JioSaavnConfig jioSaavnConfig,
 		AudiomackConfig audiomackConfig,
+		GaanaConfig gaanaConfig,
 		ProxyConfigurationService proxyConfigurationService
 	) {
 		log.info("Loading PulseLink plugin...");
@@ -205,10 +206,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		}
 
 		if (sourcesConfig.isGaana()) {
-			this.gaana = new GaanaAudioSourceManager(
-				pluginConfig.getProviders(),
-				unused -> this.manager
-			);
+			this.gaana = new GaanaAudioSourceManager(gaanaConfig.getApiUrl());
 		}
 
 		if (sourcesConfig.isShazam()) {

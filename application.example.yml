@@ -60,6 +60,9 @@ plugins:
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
+    gaana:
+      # Optional. Defaults to https://gaanapi-wine.vercel.app/
+      apiUrl: "https://gaanapi-wine.vercel.app/"
 server:
   port: 2333
   address: 0.0.0.0

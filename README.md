@@ -52,6 +52,9 @@ plugins:
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
+    gaana:
+      # Optional. Defaults to https://gaanapi-wine.vercel.app/
+      apiUrl: "https://gaanapi-wine.vercel.app/"
 ```
 
 ## Releases
@@ -83,7 +86,7 @@ Playback modes:
 | VK Music   | Direct   | Requires user token |
 | JioSaavn   | Direct   | Requires decryption key |
 | Audiomack  | Direct   | Some regions return no stream URL |
-| Gaana      | Direct   | Uses Gaana stream-path decryption |
+| Gaana      | Direct   | Uses configurable Gaana API (default included) |
 | Shazam     | Mirror   | No credentials required |
 | yt-dlp     | Direct   | Requires `yt-dlp` installed |
 | FloweryTTS | Direct   | Optional TTS service |
@@ -101,7 +104,7 @@ Search prefixes:
 - Qobuz: `qbsearch:query`
 - JioSaavn: `jssearch:query`
 - Audiomack: `admsearch:query`
-- Gaana: `gasearch:query`
+- Gaana: `gnsearch:query`
 - Shazam: `szsearch:query`
 - yt-dlp: `ytsearch:query`
 
@@ -121,7 +124,7 @@ Common URLs:
 ## Region Notes
 
 - Audiomack may return a null stream URL in restricted regions.
-- Gaana uses direct playback through the official encrypted stream-path flow.
+- Gaana uses direct HLS playback through the configured Gaana API endpoint.
 - Shazam resolves metadata directly and mirrors playback through `providers`.
 - Yandex and VK are region locked in some locations (use a proxy if needed).
 
