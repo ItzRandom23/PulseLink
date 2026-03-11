@@ -1,2 +1,2 @@
 install:
-  - ./gradlew :plugin:publishToMavenLocal -xtest
+  - ./gradlew :plugin:build -xtest
