@@ -21,6 +21,7 @@ public class SourcesConfig {
 	private boolean jiosaavn = false;
 	private boolean audiomack = false;
 	private boolean gaana = false;
+	private boolean shazam = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -125,4 +126,13 @@ public class SourcesConfig {
 	public void setGaana(boolean gaana) {
 		this.gaana = gaana;
 	}
+
+	public boolean isShazam() {
+		return this.shazam;
+	}
+
+	public void setShazam(boolean shazam) {
+		this.shazam = shazam;
+	}
+
 }

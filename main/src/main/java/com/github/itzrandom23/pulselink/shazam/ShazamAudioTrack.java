@@ -1,4 +1,4 @@
-package com.github.itzrandom23.pulselink.gaana;
+package com.github.itzrandom23.pulselink.shazam;
 
 import com.github.itzrandom23.pulselink.mirror.MirroringAudioTrack;
 import com.sedmelluq.discord.lavaplayer.container.mpeg.MpegAudioTrack;
@@ -7,15 +7,15 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.InternalAudioTrack;
 
-public class GaanaAudioTrack extends MirroringAudioTrack {
+public class ShazamAudioTrack extends MirroringAudioTrack {
 
-	public GaanaAudioTrack(
+	public ShazamAudioTrack(
 		AudioTrackInfo trackInfo,
 		String albumName,
 		String albumUrl,
 		String artistUrl,
 		String artistArtworkUrl,
-		GaanaAudioSourceManager sourceManager
+		ShazamAudioSourceManager sourceManager
 	) {
 		super(trackInfo, albumName, albumUrl, artistUrl, artistArtworkUrl, null, false, sourceManager);
 	}
@@ -27,13 +27,13 @@ public class GaanaAudioTrack extends MirroringAudioTrack {
 
 	@Override
 	protected AudioTrack makeShallowClone() {
-		return new GaanaAudioTrack(
+		return new ShazamAudioTrack(
 			this.trackInfo,
 			this.albumName,
 			this.albumUrl,
 			this.artistUrl,
 			this.artistArtworkUrl,
-			(GaanaAudioSourceManager) this.sourceManager
+			(ShazamAudioSourceManager) this.sourceManager
 		);
 	}
 }

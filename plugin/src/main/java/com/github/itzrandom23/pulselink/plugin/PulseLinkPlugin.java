@@ -17,6 +17,7 @@ import com.github.itzrandom23.pulselink.plugin.config.*;
 import com.github.itzrandom23.pulselink.plugin.service.ProxyConfigurationService;
 import com.github.itzrandom23.pulselink.protocol.Config;
 import com.github.itzrandom23.pulselink.qobuz.QobuzAudioSourceManager;
+import com.github.itzrandom23.pulselink.shazam.ShazamAudioSourceManager;
 import com.github.itzrandom23.pulselink.spotify.SpotifySourceManager;
 import com.github.itzrandom23.pulselink.tidal.TidalSourceManager;
 import com.github.itzrandom23.pulselink.vkmusic.VkMusicSourceManager;
@@ -55,6 +56,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private YtdlpAudioSourceManager ytdlp;
 	private AudiomackAudioSourceManager audiomack;
 	private GaanaAudioSourceManager gaana;
+	private ShazamAudioSourceManager shazam;
 	private LrcLibLyricsManager lrcLib;
 
 	public PulseLinkPlugin(
@@ -208,6 +210,14 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 				unused -> this.manager
 			);
 		}
+
+		if (sourcesConfig.isShazam()) {
+			this.shazam = new ShazamAudioSourceManager(
+				pluginConfig.getProviders(),
+				unused -> this.manager
+			);
+		}
+
 	}
 
 	private boolean hasNewYoutubeSource() {
@@ -271,6 +281,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			log.info("Registering Gaana audio source manager...");
 			manager.registerSourceManager(this.gaana);
 		}
+		if (this.shazam != null) {
+			log.info("Registering Shazam audio source manager...");
+			manager.registerSourceManager(this.shazam);
+		}
 		return manager;
 	}
 
@@ -308,6 +322,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (this.audiomack != null && this.sourcesConfig.isAudiomack()) {
 			log.info("Registering Audiomack search manager...");
 			manager.registerSearchManager(this.audiomack);
+		}
+		if (this.shazam != null && this.sourcesConfig.isShazam()) {
+			log.info("Registering Shazam search manager...");
+			manager.registerSearchManager(this.shazam);
 		}
 		return manager;
 	}

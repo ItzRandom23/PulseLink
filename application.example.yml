@@ -15,6 +15,7 @@ plugins:
       jiosaavn: false
       audiomack: false
       gaana: false
+      shazam: false
       flowerytts: false
       youtube: false
     lyrics-sources:
@@ -59,7 +60,6 @@ plugins:
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
-
 server:
   port: 2333
   address: 0.0.0.0

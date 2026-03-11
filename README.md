@@ -2,57 +2,15 @@
 
 PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple music services and mirrors playback through your own providers (for example YouTube search). Some sources also support direct playback.
 
-## Installation
+## Quick Start
 
-PulseLink can be installed either automatically through Lavalink's plugin loader or manually by building the jar.
-
-### Method 1 — Automatic Installation (Recommended)
-
-Lavalink can download PulseLink automatically using JitPack.
-
-Add this to your `application.yml`:
-
-```yaml
-lavalink:
-  plugins:
-    - dependency: "com.github.ItzRandom23.PulseLink:pulselink-plugin:v1.1.1"
-      repository: "https://jitpack.io"
+1. Build the plugin:
 ```
-
-Then start Lavalink. The plugin will be downloaded and loaded automatically.
-
----
-
-### Method 2 — Manual Installation
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/ItzRandom23/PulseLink.git
-cd PulseLink
-```
-
-2. Build the plugin jar:
-
-```bash
 ./gradlew :plugin:jar
 ```
-
-3. Copy the generated jar into your Lavalink `plugins` directory:
-
-```
-plugin/build/libs/pulselink-plugin-1.1.1.jar
-```
-
-Example:
-
-```bash
-cp plugin/build/libs/pulselink-plugin-1.1.1.jar /path/to/lavalink/plugins/
-```
-
+2. Copy the jar from `plugin/build/libs/` into your Lavalink `plugins` folder.
+3. Add the config shown below to your `application.yml`.
 4. Start Lavalink.
-
-The plugin will be detected and loaded automatically.
 
 ## Configuration
 
@@ -76,6 +34,7 @@ plugins:
       jiosaavn: false
       audiomack: false
       gaana: false
+      shazam: false
       flowerytts: false
       youtube: false
     lyrics-sources:
@@ -102,7 +61,7 @@ The GitHub Packages page is intended for the container image only, not Maven jar
 
 ## Providers and Mirroring
 
-PulseLink mirrors playback for services that do not stream directly (Spotify, Apple Music, Tidal, Qobuz).  
+PulseLink mirrors playback for services that do not stream directly (Spotify, Apple Music, Tidal, Qobuz, Shazam).  
 When a track is requested, PulseLink builds a provider query using the track ISRC if available, or a title/artist search fallback.
 
 Use the `plugins.pulselink.providers` list to decide where mirrored playback should be sourced from.
@@ -124,7 +83,8 @@ Playback modes:
 | VK Music   | Direct   | Requires user token |
 | JioSaavn   | Direct   | Requires decryption key |
 | Audiomack  | Direct   | Some regions return no stream URL |
-| Gaana      | Mirror   | Uses provider mirroring |
+| Gaana      | Direct   | Uses Gaana stream-path decryption |
+| Shazam     | Mirror   | No credentials required |
 | yt-dlp     | Direct   | Requires `yt-dlp` installed |
 | FloweryTTS | Direct   | Optional TTS service |
 | YouTube    | Search   | Requires LavaSearch plugin |
@@ -142,6 +102,7 @@ Search prefixes:
 - JioSaavn: `jssearch:query`
 - Audiomack: `admsearch:query`
 - Gaana: `gasearch:query`
+- Shazam: `szsearch:query`
 - yt-dlp: `ytsearch:query`
 
 Common URLs:
@@ -155,11 +116,13 @@ Common URLs:
 - JioSaavn: `https://www.jiosaavn.com/song/...`
 - Audiomack: `https://audiomack.com/artist/song/...`
 - Gaana: `https://gaana.com/song/...`
+- Shazam: `https://www.shazam.com/song/...`
 
 ## Region Notes
 
 - Audiomack may return a null stream URL in restricted regions.
-- Gaana resolves metadata directly and mirrors playback through `providers`.
+- Gaana uses direct playback through the official encrypted stream-path flow.
+- Shazam resolves metadata directly and mirrors playback through `providers`.
 - Yandex and VK are region locked in some locations (use a proxy if needed).
 
 ## Credits
