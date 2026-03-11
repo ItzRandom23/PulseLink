@@ -2,15 +2,57 @@
 
 PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple music services and mirrors playback through your own providers (for example YouTube search). Some sources also support direct playback.
 
-## Quick Start
+## Installation
 
-1. Build the plugin:
+PulseLink can be installed either automatically through Lavalink's plugin loader or manually by building the jar.
+
+### Method 1 — Automatic Installation (Recommended)
+
+Lavalink can download PulseLink automatically using JitPack.
+
+Add this to your `application.yml`:
+
+```yaml
+lavalink:
+  plugins:
+    - dependency: "com.github.ItzRandom23.PulseLink:pulselink-plugin:v1.1.1"
+      repository: "https://jitpack.io"
 ```
+
+Then start Lavalink. The plugin will be downloaded and loaded automatically.
+
+---
+
+### Method 2 — Manual Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/ItzRandom23/PulseLink.git
+cd PulseLink
+```
+
+2. Build the plugin jar:
+
+```bash
 ./gradlew :plugin:jar
 ```
-2. Copy the jar from `plugin/build/libs/` into your Lavalink `plugins` folder.
-3. Add the config shown below to your `application.yml`.
+
+3. Copy the generated jar into your Lavalink `plugins` directory:
+
+```
+plugin/build/libs/pulselink-plugin-1.1.1.jar
+```
+
+Example:
+
+```bash
+cp plugin/build/libs/pulselink-plugin-1.1.1.jar /path/to/lavalink/plugins/
+```
+
 4. Start Lavalink.
+
+The plugin will be detected and loaded automatically.
 
 ## Configuration
 
