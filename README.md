@@ -33,6 +33,7 @@ plugins:
       ytdlp: false
       jiosaavn: false
       audiomack: false
+      gaana: false
       flowerytts: false
       youtube: false
     lyrics-sources:
@@ -51,6 +52,11 @@ plugins:
       searchLimit: 10
       artistTrackLimit: 25
 ```
+
+## Releases
+
+PulseLink ships jars through GitHub Releases and the GitHub Actions build artifacts.
+The GitHub Packages page is intended for the container image only, not Maven jars.
 
 ## Providers and Mirroring
 
@@ -76,6 +82,7 @@ Playback modes:
 | VK Music   | Direct   | Requires user token |
 | JioSaavn   | Direct   | Requires decryption key |
 | Audiomack  | Direct   | Some regions return no stream URL |
+| Gaana      | Mirror   | Uses provider mirroring |
 | yt-dlp     | Direct   | Requires `yt-dlp` installed |
 | FloweryTTS | Direct   | Optional TTS service |
 | YouTube    | Search   | Requires LavaSearch plugin |
@@ -92,6 +99,7 @@ Search prefixes:
 - Qobuz: `qbsearch:query`
 - JioSaavn: `jssearch:query`
 - Audiomack: `admsearch:query`
+- Gaana: `gasearch:query`
 - yt-dlp: `ytsearch:query`
 
 Common URLs:
@@ -104,10 +112,12 @@ Common URLs:
 - Qobuz: `https://open.qobuz.com/track/...`
 - JioSaavn: `https://www.jiosaavn.com/song/...`
 - Audiomack: `https://audiomack.com/artist/song/...`
+- Gaana: `https://gaana.com/song/...`
 
 ## Region Notes
 
 - Audiomack may return a null stream URL in restricted regions.
+- Gaana resolves metadata directly and mirrors playback through `providers`.
 - Yandex and VK are region locked in some locations (use a proxy if needed).
 
 ## Credits

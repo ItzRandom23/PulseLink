@@ -20,6 +20,7 @@ public class SourcesConfig {
 	private boolean ytdlp = false;
 	private boolean jiosaavn = false;
 	private boolean audiomack = false;
+	private boolean gaana = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -115,5 +116,13 @@ public class SourcesConfig {
 
 	public void setAudiomack(boolean audiomack) {
 		this.audiomack = audiomack;
+	}
+
+	public boolean isGaana() {
+		return this.gaana;
+	}
+
+	public void setGaana(boolean gaana) {
+		this.gaana = gaana;
 	}
 }

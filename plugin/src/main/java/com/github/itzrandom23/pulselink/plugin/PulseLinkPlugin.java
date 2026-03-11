@@ -9,6 +9,7 @@ import com.github.itzrandom23.pulselink.audiomack.AudiomackAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioTrack;
 import com.github.itzrandom23.pulselink.flowerytts.FloweryTTSSourceManager;
+import com.github.itzrandom23.pulselink.gaana.GaanaAudioSourceManager;
 import com.github.itzrandom23.pulselink.jiosaavn.JioSaavnAudioSourceManager;
 import com.github.itzrandom23.pulselink.lrclib.LrcLibLyricsManager;
 import com.github.itzrandom23.pulselink.mirror.DefaultMirroringAudioTrackResolver;
@@ -53,6 +54,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private QobuzAudioSourceManager qobuz;
 	private YtdlpAudioSourceManager ytdlp;
 	private AudiomackAudioSourceManager audiomack;
+	private GaanaAudioSourceManager gaana;
 	private LrcLibLyricsManager lrcLib;
 
 	public PulseLinkPlugin(
@@ -199,6 +201,13 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (sourcesConfig.isAudiomack()) {
 			this.audiomack = new AudiomackAudioSourceManager(audiomackConfig.buildConfig());
 		}
+
+		if (sourcesConfig.isGaana()) {
+			this.gaana = new GaanaAudioSourceManager(
+				pluginConfig.getProviders(),
+				unused -> this.manager
+			);
+		}
 	}
 
 	private boolean hasNewYoutubeSource() {
@@ -257,6 +266,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (this.audiomack != null) {
 			log.info("Registering Audiomack audio source manager...");
 			manager.registerSourceManager(this.audiomack);
+		}
+		if (this.gaana != null) {
+			log.info("Registering Gaana audio source manager...");
+			manager.registerSourceManager(this.gaana);
 		}
 		return manager;
 	}

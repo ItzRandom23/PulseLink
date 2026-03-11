@@ -1,6 +1,6 @@
 plugins {
-    id "org.jetbrains.kotlin.jvm" version "1.9.0" apply false
-    id "org.jetbrains.kotlin.plugin.serialization" version "1.9.0" apply false
+    id "org.jetbrains.kotlin.jvm" version "1.9.24" apply false
+    id "org.jetbrains.kotlin.plugin.serialization" version "1.9.24" apply false
 }
 allprojects {
     group = "com.github.itzrandom23.pulselink"
@@ -36,14 +36,11 @@ def getGitVersion() {
     return [versionStr.toString().trim(), true]
 }
 
-var isMavenDefined = findProperty("MAVEN_USERNAME") != null && findProperty("MAVEN_PASSWORD") != null
-var isGithubPackagesDefined = findProperty("GITHUB_ACTOR") != null && findProperty("GITHUB_TOKEN") != null
-
 subprojects {
     apply plugin: "java"
     apply plugin: "maven-publish"
 
-    def versionStr = "1.0.0"
+    def versionStr = "1.1.0"
     def isSnapshot = false
     version versionStr
     println "Version: " + versionStr
@@ -59,25 +56,7 @@ subprojects {
         enabled = false
     }
 
-    publishing {
-        repositories {
-            if (isGithubPackagesDefined) {
-                System.out.println("Publishing to GitHub Packages")
-                maven {
-                    name = "GitHubPackages"
-                    url = "https://maven.pkg.github.com/ItzRandom23/PulseLink"
-                    credentials {
-                        username = findProperty("GITHUB_ACTOR")
-                        password = findProperty("GITHUB_TOKEN")
-                    }
-                }
-            }
-        }
-    }
-
-    if (project.name != "plugin") {
-        tasks.matching { it.name.startsWith("publish") || it.name.startsWith("generatePomFileFor") }.configureEach {
-            enabled = false
-        }
+    tasks.matching { it.name.startsWith("publish") || it.name.startsWith("generatePomFileFor") }.configureEach {
+        enabled = false
     }
 }

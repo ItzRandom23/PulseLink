@@ -14,6 +14,7 @@ plugins:
       ytdlp: false
       jiosaavn: false
       audiomack: false
+      gaana: false
       flowerytts: false
       youtube: false
     lyrics-sources:
