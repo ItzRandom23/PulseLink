@@ -161,6 +161,11 @@ public class GaanaAudioSourceManager extends ExtendedAudioSourceManager implemen
 		request.setHeader("Accept", "*/*");
 		request.setHeader("Origin", "https://gaana.com");
 		request.setHeader("Referer", "https://gaana.com/");
+		request.setConfig(RequestConfig.custom()
+			.setConnectTimeout(10000)
+			.setConnectionRequestTimeout(10000)
+			.setSocketTimeout(20000)
+			.build());
 		return request;
 	}
 
@@ -435,9 +440,9 @@ public class GaanaAudioSourceManager extends ExtendedAudioSourceManager implemen
 				return "https://gaana.com/artist/" + first;
 			}
 		}
-		String artistId = getFirstText(track, "artist_id");
+		String artistId = getFirstText(track, "artist_id", "artist_ids");
 		if (artistId != null && !artistId.isBlank()) {
-			return "https://gaana.com/artist/" + artistId;
+			return "https://gaana.com/artist/" + artistId.split(",")[0].trim();
 		}
 		return null;
 	}

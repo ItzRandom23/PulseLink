@@ -37,6 +37,7 @@ public class PulseLinkAudioPluginInfoModifier implements AudioPluginInfoModifier
 	public JsonObject modifyAudioTrackPluginInfo(@NotNull AudioTrack track) {
 		if (track instanceof ExtendedAudioTrack extendedTrack) {
 			var json = new HashMap<>(Map.of(
+				"artworkUrl", JsonElementKt.JsonPrimitive(track.getInfo().artworkUrl),
 				"albumName", JsonElementKt.JsonPrimitive(extendedTrack.getAlbumName()),
 				"albumUrl", JsonElementKt.JsonPrimitive(extendedTrack.getAlbumUrl()),
 				"artistUrl", JsonElementKt.JsonPrimitive(extendedTrack.getArtistUrl()),

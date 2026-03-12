@@ -10,13 +10,21 @@ import com.sedmelluq.discord.lavaplayer.tools.io.PersistentHttpStream;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class GaanaAudioTrack extends ExtendedAudioTrack {
 
@@ -62,7 +70,7 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 						new IllegalStateException("No HLS segments")
 					);
 				}
-				try (SegmentedStream stream = new SegmentedStream(httpInterface, this.sourceManager, segments)) {
+				try (SegmentedStream stream = new SegmentedStream(this.sourceManager, segments)) {
 					processDelegate(new MpegAdtsAudioTrack(this.trackInfo, stream), executor);
 					return;
 				}
@@ -94,18 +102,31 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 	}
 
 	private static final class SegmentedStream extends InputStream {
-		private final HttpInterface httpInterface;
+		private static final int MAX_RETRIES = 3;
+		private static final int MAX_PARALLEL_FETCHES = 3;
+		private static final int PREFETCH_WINDOW = 6;
+
 		private final GaanaAudioSourceManager sourceManager;
 		private final List<String> segments;
+		private final ExecutorService fetchExecutor;
+		private final Map<Integer, Future<byte[]>> pendingSegments;
 
-		private int index;
-		private CloseableHttpResponse response;
-		private InputStream currentStream;
+		private int nextScheduleIndex;
+		private int nextReadIndex;
+		private byte[] currentSegmentData;
+		private int currentOffset;
+		private boolean closed;
 
-		private SegmentedStream(HttpInterface httpInterface, GaanaAudioSourceManager sourceManager, List<String> segments) {
-			this.httpInterface = httpInterface;
+		private SegmentedStream(GaanaAudioSourceManager sourceManager, List<String> segments) {
 			this.sourceManager = sourceManager;
 			this.segments = segments;
+			this.fetchExecutor = Executors.newFixedThreadPool(MAX_PARALLEL_FETCHES, runnable -> {
+				Thread thread = new Thread(runnable, "pulselink-gaana-prefetch");
+				thread.setDaemon(true);
+				return thread;
+			});
+			this.pendingSegments = new HashMap<>();
+			scheduleAhead();
 		}
 
 		@Override
@@ -118,53 +139,115 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 		@Override
 		public int read(byte[] b, int off, int len) throws IOException {
 			while (true) {
-				if (this.currentStream == null) {
+				if (this.currentSegmentData == null || this.currentOffset >= this.currentSegmentData.length) {
 					if (!openNextSegment()) {
 						return -1;
 					}
 				}
 
-				int read = this.currentStream.read(b, off, len);
-				if (read >= 0) {
-					return read;
+				int remaining = this.currentSegmentData.length - this.currentOffset;
+				int toCopy = Math.min(len, remaining);
+				System.arraycopy(this.currentSegmentData, this.currentOffset, b, off, toCopy);
+				this.currentOffset += toCopy;
+				if (this.currentOffset >= this.currentSegmentData.length) {
+					closeCurrent();
 				}
-				closeCurrent();
+				return toCopy;
 			}
 		}
 
 		private boolean openNextSegment() throws IOException {
 			closeCurrent();
-			if (this.index >= this.segments.size()) {
+			if (this.nextReadIndex >= this.segments.size()) {
 				return false;
 			}
 
-			String segmentUrl = this.segments.get(this.index++).trim();
-			if (!(segmentUrl.startsWith("http://") || segmentUrl.startsWith("https://"))) {
-				throw new IOException("Invalid Gaana segment URL: " + segmentUrl);
+			scheduleAhead();
+			Future<byte[]> future = this.pendingSegments.remove(this.nextReadIndex);
+			if (future == null) {
+				throw new IOException("Gaana segment was not scheduled: " + this.nextReadIndex);
 			}
-			this.response = this.httpInterface.execute(this.sourceManager.createRequest(segmentUrl));
-			int status = this.response.getStatusLine().getStatusCode();
-			if (status != 200) {
-				closeCurrent();
-				throw new IOException("Failed to fetch Gaana segment, status " + status);
+
+			try {
+				this.currentSegmentData = future.get();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IOException("Interrupted while waiting for Gaana segment", e);
+			} catch (ExecutionException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof IOException ioException) {
+					throw ioException;
+				}
+				throw new IOException("Failed to fetch Gaana segment", cause);
 			}
-			this.currentStream = this.response.getEntity().getContent();
-			return true;
+			this.currentOffset = 0;
+			this.nextReadIndex++;
+			scheduleAhead();
+			return this.currentSegmentData != null && this.currentSegmentData.length > 0;
+		}
+
+		private void scheduleAhead() {
+			while (!this.closed
+				&& this.nextScheduleIndex < this.segments.size()
+				&& this.pendingSegments.size() < PREFETCH_WINDOW) {
+				final int segmentIndex = this.nextScheduleIndex++;
+				final String segmentUrl = this.segments.get(segmentIndex).trim();
+				if (!(segmentUrl.startsWith("http://") || segmentUrl.startsWith("https://"))) {
+					continue;
+				}
+				this.pendingSegments.put(segmentIndex, this.fetchExecutor.submit(() -> downloadSegment(segmentUrl)));
+			}
+		}
+
+		private byte[] downloadSegment(String segmentUrl) throws IOException {
+			IOException lastError = null;
+			for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+				try (HttpInterface httpInterface = this.sourceManager.getHttpInterface()) {
+					try (CloseableHttpResponse response = httpInterface.execute(this.sourceManager.createRequest(segmentUrl))) {
+						int status = response.getStatusLine().getStatusCode();
+						if (status != 200) {
+							throw new IOException("Failed to fetch Gaana segment, status " + status);
+						}
+
+						try (InputStream input = response.getEntity().getContent()) {
+							ByteArrayOutputStream output = new ByteArrayOutputStream(131072);
+							IOUtils.copy(input, output);
+							byte[] data = output.toByteArray();
+							if (data.length == 0) {
+								throw new IOException("Gaana segment returned no data");
+							}
+							return data;
+						}
+					}
+				} catch (IOException e) {
+					lastError = e;
+					if (attempt == MAX_RETRIES) {
+						break;
+					}
+					try {
+						Thread.sleep(250L * attempt);
+					} catch (InterruptedException interrupted) {
+						Thread.currentThread().interrupt();
+						throw new IOException("Interrupted while retrying Gaana segment fetch", interrupted);
+					}
+				}
+			}
+			throw lastError != null ? lastError : new IOException("Failed to fetch Gaana segment");
 		}
 
 		private void closeCurrent() throws IOException {
-			if (this.currentStream != null) {
-				this.currentStream.close();
-				this.currentStream = null;
-			}
-			if (this.response != null) {
-				this.response.close();
-				this.response = null;
-			}
+			this.currentSegmentData = null;
+			this.currentOffset = 0;
 		}
 
 		@Override
 		public void close() throws IOException {
+			this.closed = true;
+			for (Future<byte[]> future : this.pendingSegments.values()) {
+				future.cancel(true);
+			}
+			this.pendingSegments.clear();
+			this.fetchExecutor.shutdownNow();
 			closeCurrent();
 			super.close();
 		}
