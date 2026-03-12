@@ -37,6 +37,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -54,8 +56,14 @@ public class GaanaAudioSourceManager extends ExtendedAudioSourceManager implemen
 	private static final int SEARCH_LIMIT = 10;
 	private static final int ARTIST_TRACK_LIMIT = 25;
 	private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
+	private static final int SEGMENT_FETCH_THREADS = Math.max(3, Runtime.getRuntime().availableProcessors() / 2);
 
 	private final HttpInterfaceManager httpInterfaceManager = HttpClientTools.createCookielessThreadLocalManager();
+	private final ExecutorService segmentFetchExecutor = Executors.newFixedThreadPool(SEGMENT_FETCH_THREADS, runnable -> {
+		Thread thread = new Thread(runnable, "pulselink-gaana-segment-fetch");
+		thread.setDaemon(true);
+		return thread;
+	});
 	private final String apiBase;
 
 	public GaanaAudioSourceManager() {
@@ -153,6 +161,10 @@ public class GaanaAudioSourceManager extends ExtendedAudioSourceManager implemen
 
 	public HttpInterface getHttpInterface() {
 		return this.httpInterfaceManager.getInterface();
+	}
+
+	ExecutorService getSegmentFetchExecutor() {
+		return this.segmentFetchExecutor;
 	}
 
 	HttpGet createRequest(String url) {
@@ -519,6 +531,7 @@ public class GaanaAudioSourceManager extends ExtendedAudioSourceManager implemen
 
 	@Override
 	public void shutdown() {
+		this.segmentFetchExecutor.shutdownNow();
 		try {
 			this.httpInterfaceManager.close();
 		} catch (IOException e) {

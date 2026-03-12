@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class GaanaAudioTrack extends ExtendedAudioTrack {
@@ -71,6 +70,7 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 					);
 				}
 				try (SegmentedStream stream = new SegmentedStream(this.sourceManager, segments)) {
+					stream.awaitWarmup();
 					processDelegate(new MpegAdtsAudioTrack(this.trackInfo, stream), executor);
 					return;
 				}
@@ -103,8 +103,8 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 
 	private static final class SegmentedStream extends InputStream {
 		private static final int MAX_RETRIES = 3;
-		private static final int MAX_PARALLEL_FETCHES = 3;
 		private static final int PREFETCH_WINDOW = 6;
+		private static final int WARMUP_SEGMENTS = 2;
 
 		private final GaanaAudioSourceManager sourceManager;
 		private final List<String> segments;
@@ -120,13 +120,35 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 		private SegmentedStream(GaanaAudioSourceManager sourceManager, List<String> segments) {
 			this.sourceManager = sourceManager;
 			this.segments = segments;
-			this.fetchExecutor = Executors.newFixedThreadPool(MAX_PARALLEL_FETCHES, runnable -> {
-				Thread thread = new Thread(runnable, "pulselink-gaana-prefetch");
-				thread.setDaemon(true);
-				return thread;
-			});
+			this.fetchExecutor = sourceManager.getSegmentFetchExecutor();
 			this.pendingSegments = new HashMap<>();
 			scheduleAhead();
+		}
+
+		private void awaitWarmup() throws IOException {
+			int warmupCount = Math.min(WARMUP_SEGMENTS, this.segments.size());
+			for (int i = 0; i < warmupCount; i++) {
+				Future<byte[]> future = this.pendingSegments.get(i);
+				if (future == null) {
+					throw new IOException("Gaana warmup segment was not scheduled: " + i);
+				}
+
+				try {
+					byte[] data = future.get();
+					if (data == null || data.length == 0) {
+						throw new IOException("Gaana warmup segment returned no data");
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new IOException("Interrupted while warming up Gaana playback", e);
+				} catch (ExecutionException e) {
+					Throwable cause = e.getCause();
+					if (cause instanceof IOException ioException) {
+						throw ioException;
+					}
+					throw new IOException("Failed to warm up Gaana segment buffer", cause);
+				}
+			}
 		}
 
 		@Override
@@ -247,7 +269,6 @@ public class GaanaAudioTrack extends ExtendedAudioTrack {
 				future.cancel(true);
 			}
 			this.pendingSegments.clear();
-			this.fetchExecutor.shutdownNow();
 			closeCurrent();
 			super.close();
 		}
