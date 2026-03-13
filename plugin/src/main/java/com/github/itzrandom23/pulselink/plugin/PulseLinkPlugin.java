@@ -5,6 +5,7 @@ import com.github.topi314.lavalyrics.api.LyricsManagerConfiguration;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasearch.api.SearchManagerConfiguration;
 import com.github.itzrandom23.pulselink.applemusic.AppleMusicSourceManager;
+import com.github.itzrandom23.pulselink.amazonmusic.AmazonMusicSourceManager;
 import com.github.itzrandom23.pulselink.audiomack.AudiomackAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioTrack;
@@ -44,6 +45,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private final LyricsSourcesConfig lyricsSourcesConfig;
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
+	private AmazonMusicSourceManager amazonMusic;
 	private AppleMusicSourceManager appleMusic;
 	private DeezerAudioSourceManager deezer;
 	private YandexMusicSourceManager yandexMusic;
@@ -64,6 +66,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		SourcesConfig sourcesConfig,
 		LyricsSourcesConfig lyricsSourcesConfig,
 		SpotifyConfig spotifyConfig,
+		AmazonMusicConfig amazonMusicConfig,
 		AppleMusicConfig appleMusicConfig,
 		DeezerConfig deezerConfig,
 		YandexMusicConfig yandexMusicConfig,
@@ -102,6 +105,20 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
         this.spotify.setLocalFiles(spotifyConfig.isLocalFiles());
     }
 }
+
+		if (sourcesConfig.isAmazonMusic()) {
+			this.amazonMusic = new AmazonMusicSourceManager(
+				pluginConfig.getProviders(),
+				unused -> manager
+			);
+			int searchLimit = amazonMusicConfig.getSearchLimit();
+			if (searchLimit < 0) {
+				searchLimit = 0;
+			} else if (searchLimit > 10) {
+				searchLimit = 10;
+			}
+			this.amazonMusic.setSearchLimit(searchLimit);
+		}
 
 		if (sourcesConfig.isAppleMusic()) {
 			this.appleMusic = new AppleMusicSourceManager(pluginConfig.getProviders(), appleMusicConfig.getMediaAPIToken(), appleMusicConfig.getCountryCode(), unused -> manager);
@@ -235,6 +252,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			log.info("Registering Spotify audio source manager...");
 			manager.registerSourceManager(this.spotify);
 		}
+		if (this.amazonMusic != null && this.sourcesConfig.isAmazonMusic()) {
+			log.info("Registering Amazon Music audio source manager...");
+			manager.registerSourceManager(this.amazonMusic);
+		}
 		if (this.appleMusic != null) {
 			log.info("Registering Apple Music audio source manager...");
 			manager.registerSourceManager(this.appleMusic);
@@ -292,6 +313,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (this.spotify != null && this.sourcesConfig.isSpotify()) {
 			log.info("Registering Spotify search manager...");
 			manager.registerSearchManager(this.spotify);
+		}
+		if (this.amazonMusic != null && this.sourcesConfig.isAmazonMusic()) {
+			log.info("Registering Amazon Music search manager...");
+			manager.registerSearchManager(this.amazonMusic);
 		}
 		if (this.appleMusic != null && this.sourcesConfig.isAppleMusic()) {
 			log.info("Registering Apple Music search manager...");

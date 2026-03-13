@@ -5,6 +5,7 @@ plugins:
       - "ytsearch:%QUERY%"
     sources:
       spotify: true
+      amazonmusic: false
       applemusic: false
       deezer: false
       yandexmusic: false
@@ -30,6 +31,9 @@ plugins:
       albumLoadLimit: 6
       resolveArtistsInSearch: true
       localFiles: false
+    amazonmusic:
+      # Optional. 0-10
+      searchLimit: 10
     applemusic:
       countryCode: "US"
       mediaAPIToken: "your apple music api token"
