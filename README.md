@@ -18,12 +18,12 @@ If you want Lavalink to pull the plugin automatically via JitPack, add this to `
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.4.1"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.4.2"
     repository: "https://jitpack.io"
     snapshot: false
 ```
 
-Replace `v1.4.0` with the Git tag you published.
+Replace `v1.4.2` with the Git tag you published.
 
 ## Configuration
 
