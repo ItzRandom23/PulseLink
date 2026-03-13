@@ -12,6 +12,19 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 3. Add the config shown below to your `application.yml`.
 4. Start Lavalink.
 
+## JitPack Install
+
+If you want Lavalink to pull the plugin automatically via JitPack, add this to `application.yml`:
+
+```yaml
+plugins:
+  - dependency: "com.github.itzrandom23.pulselink:pulselink-plugin:v1.4.0"
+    repository: "https://jitpack.io"
+    snapshot: false
+```
+
+Replace `v1.4.0` with the Git tag you published.
+
 ## Configuration
 
 Minimal example for Lavalink:
