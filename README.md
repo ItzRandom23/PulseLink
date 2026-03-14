@@ -23,8 +23,6 @@ plugins:
     snapshot: false
 ```
 
-Replace `v1.4.2` with the Git tag you published.
-
 ## Configuration
 
 Minimal example for Lavalink:
