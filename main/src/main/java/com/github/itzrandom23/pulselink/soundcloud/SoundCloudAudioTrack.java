@@ -1,6 +1,7 @@
 package com.github.itzrandom23.pulselink.soundcloud;
 
 import com.github.itzrandom23.pulselink.ExtendedAudioTrack;
+import com.github.itzrandom23.pulselink.soundcloud.hls.SoundCloudHlsSeekableInputStream;
 import com.github.itzrandom23.pulselink.soundcloud.hls.SoundCloudHlsStream;
 import com.sedmelluq.discord.lavaplayer.container.mpeg.MpegAudioTrack;
 import com.sedmelluq.discord.lavaplayer.container.mpegts.MpegAdtsAudioTrack;
@@ -46,13 +47,15 @@ public class SoundCloudAudioTrack extends ExtendedAudioTrack {
 
 			if (streamInfo.protocol() == SoundCloudAudioSourceManager.Protocol.HLS) {
 				try (SoundCloudHlsStream stream = new SoundCloudHlsStream(this.sourceManager, streamInfo.streamUrl(), 0)) {
-					String mimeType = streamInfo.mimeType().toLowerCase();
-					if (mimeType.contains("mpeg")) {
-						processDelegate(new MpegAudioTrack(this.trackInfo, stream), executor);
+					try (SoundCloudHlsSeekableInputStream seekable = new SoundCloudHlsSeekableInputStream(stream)) {
+						String mimeType = streamInfo.mimeType().toLowerCase();
+						if (mimeType.contains("mpeg")) {
+							processDelegate(new MpegAudioTrack(this.trackInfo, seekable), executor);
+							return;
+						}
+						processDelegate(new MpegAdtsAudioTrack(this.trackInfo, seekable), executor);
 						return;
 					}
-					processDelegate(new MpegAdtsAudioTrack(this.trackInfo, stream), executor);
-					return;
 				}
 			}
 
