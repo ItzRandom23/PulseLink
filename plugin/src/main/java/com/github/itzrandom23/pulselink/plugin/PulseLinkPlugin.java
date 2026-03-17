@@ -19,7 +19,6 @@ import com.github.itzrandom23.pulselink.plugin.service.ProxyConfigurationService
 import com.github.itzrandom23.pulselink.protocol.Config;
 import com.github.itzrandom23.pulselink.qobuz.QobuzAudioSourceManager;
 import com.github.itzrandom23.pulselink.shazam.ShazamAudioSourceManager;
-import com.github.itzrandom23.pulselink.soundcloud.SoundCloudAudioSourceManager;
 import com.github.itzrandom23.pulselink.spotify.SpotifySourceManager;
 import com.github.itzrandom23.pulselink.tidal.TidalSourceManager;
 import com.github.itzrandom23.pulselink.vkmusic.VkMusicSourceManager;
@@ -60,7 +59,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private AudiomackAudioSourceManager audiomack;
 	private GaanaAudioSourceManager gaana;
 	private ShazamAudioSourceManager shazam;
-	private SoundCloudAudioSourceManager soundcloud;
 	private LrcLibLyricsManager lrcLib;
 
 	public PulseLinkPlugin(
@@ -81,7 +79,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		JioSaavnConfig jioSaavnConfig,
 		AudiomackConfig audiomackConfig,
 		GaanaConfig gaanaConfig,
-		SoundCloudConfig soundCloudConfig,
 		ProxyConfigurationService proxyConfigurationService
 	) {
 		log.info("Loading PulseLink plugin...");
@@ -193,7 +190,14 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			}
 		}
 		if (sourcesConfig.isTidal()) {
-			this.tidal = new TidalSourceManager(pluginConfig.getProviders(), tidalConfig.getCountryCode(), unused -> this.manager, tidalConfig.getToken());
+			this.tidal = new TidalSourceManager(
+				pluginConfig.getProviders(),
+				tidalConfig.getCountryCode(),
+				unused -> this.manager,
+				tidalConfig.getToken(),
+				tidalConfig.getHifiApis(),
+				tidalConfig.getHifiQualities()
+			);
 			if (tidalConfig.getSearchLimit() > 0) {
 				this.tidal.setSearchLimit(tidalConfig.getSearchLimit());
 			}
@@ -227,10 +231,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 
 		if (sourcesConfig.isGaana()) {
 			this.gaana = new GaanaAudioSourceManager(gaanaConfig.getApiUrl());
-		}
-
-		if (sourcesConfig.isSoundcloud()) {
-			this.soundcloud = new SoundCloudAudioSourceManager(soundCloudConfig.buildConfig());
 		}
 
 		if (sourcesConfig.isShazam()) {
@@ -307,10 +307,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			log.info("Registering Gaana audio source manager...");
 			manager.registerSourceManager(this.gaana);
 		}
-		if (this.soundcloud != null) {
-			log.info("Registering SoundCloud audio source manager...");
-			manager.registerSourceManager(this.soundcloud);
-		}
 		if (this.shazam != null) {
 			log.info("Registering Shazam audio source manager...");
 			manager.registerSourceManager(this.shazam);
@@ -356,10 +352,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (this.audiomack != null && this.sourcesConfig.isAudiomack()) {
 			log.info("Registering Audiomack search manager...");
 			manager.registerSearchManager(this.audiomack);
-		}
-		if (this.soundcloud != null && this.sourcesConfig.isSoundcloud()) {
-			log.info("Registering SoundCloud search manager...");
-			manager.registerSearchManager(this.soundcloud);
 		}
 		if (this.shazam != null && this.sourcesConfig.isShazam()) {
 			log.info("Registering Shazam search manager...");
