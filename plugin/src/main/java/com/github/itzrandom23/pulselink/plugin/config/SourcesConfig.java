@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class SourcesConfig {
 
 	private boolean spotify = false;
+	private boolean amazonMusic = false;
 	private boolean appleMusic = false;
 	private boolean deezer = false;
 	private boolean yandexMusic = false;
@@ -30,6 +31,14 @@ public class SourcesConfig {
 
 	public void setSpotify(boolean spotify) {
 		this.spotify = spotify;
+	}
+
+	public boolean isAmazonMusic() {
+		return this.amazonMusic;
+	}
+
+	public void setAmazonMusic(boolean amazonMusic) {
+		this.amazonMusic = amazonMusic;
 	}
 
 	public boolean isAppleMusic() {

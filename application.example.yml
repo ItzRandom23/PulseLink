@@ -5,6 +5,7 @@ plugins:
       - "ytsearch:%QUERY%"
     sources:
       spotify: true
+      amazonmusic: false
       applemusic: false
       amazonmusic: false
       deezer: false
