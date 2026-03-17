@@ -43,6 +43,7 @@ plugins:
       tidal: false
       qobuz: false
       ytdlp: false
+      soundcloud: false
       jiosaavn: false
       audiomack: false
       gaana: false
@@ -71,7 +72,6 @@ plugins:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
 ```
-
 ## Releases
 
 PulseLink ships jars through GitHub Releases and the GitHub Actions build artifacts.
@@ -79,7 +79,7 @@ The GitHub Packages page is intended for the container image only, not Maven jar
 
 ## Providers and Mirroring
 
-PulseLink mirrors playback for services that do not stream directly (Spotify, Amazon Music, Apple Music, Tidal, Qobuz, Shazam).  
+PulseLink mirrors playback for services that do not stream directly (Spotify, Apple Music, Tidal, Qobuz, Shazam).  
 When a track is requested, PulseLink builds a provider query using the track ISRC if available, or a title/artist search fallback.
 
 Use the `plugins.pulselink.providers` list to decide where mirrored playback should be sourced from.
@@ -93,7 +93,6 @@ Playback modes:
 | Source     | Playback | Notes |
 |------------|----------|-------|
 | Spotify    | Mirror   | No credentials required |
-| Amazon Music | Mirror | No credentials required |
 | Apple Music| Mirror   | Requires Apple Music API token or MusicKit key |
 | Tidal      | Mirror   | Uses provider mirroring |
 | Qobuz      | Mirror   | Uses provider mirroring |
@@ -103,6 +102,7 @@ Playback modes:
 | JioSaavn   | Direct   | Requires decryption key |
 | Audiomack  | Direct   | Some regions return no stream URL |
 | Gaana      | Direct   | Uses configurable Gaana API (default included) |
+| SoundCloud | Direct   | Resolves public streams via client_id |
 | Shazam     | Mirror   | No credentials required |
 | yt-dlp     | Direct   | Requires `yt-dlp` installed |
 | FloweryTTS | Direct   | Optional TTS service |
@@ -112,7 +112,6 @@ Playback modes:
 
 Search prefixes:
 - Spotify: `spsearch:query`
-- Amazon Music: `amzsearch:query`
 - Apple Music: `amsearch:query`
 - Deezer: `dzsearch:query`
 - Yandex: `ymsearch:query`
@@ -124,10 +123,10 @@ Search prefixes:
 - Gaana: `gnsearch:query`
 - Shazam: `szsearch:query`
 - yt-dlp: `ytsearch:query`
+- SoundCloud: `scsearch:query`
 
 Common URLs:
 - Spotify: `https://open.spotify.com/track/...`
-- Amazon Music: `https://music.amazon.com/tracks/...`
 - Apple Music: `https://music.apple.com/...`
 - Deezer: `https://www.deezer.com/track/...`
 - Yandex: `https://music.yandex.ru/track/...`
@@ -138,6 +137,7 @@ Common URLs:
 - Audiomack: `https://audiomack.com/artist/song/...`
 - Gaana: `https://gaana.com/song/...`
 - Shazam: `https://www.shazam.com/song/...`
+- SoundCloud: `https://soundcloud.com/artist/track` or `https://soundcloud.com/artist/sets/playlist`
 
 ## Region Notes
 

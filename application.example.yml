@@ -5,8 +5,8 @@ plugins:
       - "ytsearch:%QUERY%"
     sources:
       spotify: true
-      amazonmusic: false
       applemusic: false
+      amazonmusic: false
       deezer: false
       yandexmusic: false
       vkmusic: false
@@ -17,6 +17,7 @@ plugins:
       audiomack: false
       gaana: false
       shazam: false
+      soundcloud: false
       flowerytts: false
       youtube: false
     lyrics-sources:
@@ -67,6 +68,11 @@ plugins:
     gaana:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
+    soundcloud:
+      # Optional. If omitted, PulseLink will fetch a public client_id from SoundCloud.
+      clientId: ""
+      searchLimit: 10
+      playlistLoadLimit: 100
 server:
   port: 2333
   address: 0.0.0.0

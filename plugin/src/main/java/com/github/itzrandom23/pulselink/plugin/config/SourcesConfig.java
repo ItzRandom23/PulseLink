@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 public class SourcesConfig {
 
 	private boolean spotify = false;
-	private boolean amazonMusic = false;
 	private boolean appleMusic = false;
 	private boolean deezer = false;
 	private boolean yandexMusic = false;
@@ -23,6 +22,7 @@ public class SourcesConfig {
 	private boolean audiomack = false;
 	private boolean gaana = false;
 	private boolean shazam = false;
+	private boolean soundcloud = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -30,14 +30,6 @@ public class SourcesConfig {
 
 	public void setSpotify(boolean spotify) {
 		this.spotify = spotify;
-	}
-
-	public boolean isAmazonMusic() {
-		return this.amazonMusic;
-	}
-
-	public void setAmazonMusic(boolean amazonMusic) {
-		this.amazonMusic = amazonMusic;
 	}
 
 	public boolean isAppleMusic() {
@@ -142,6 +134,14 @@ public class SourcesConfig {
 
 	public void setShazam(boolean shazam) {
 		this.shazam = shazam;
+	}
+
+	public boolean isSoundcloud() {
+		return this.soundcloud;
+	}
+
+	public void setSoundcloud(boolean soundcloud) {
+		this.soundcloud = soundcloud;
 	}
 
 }
