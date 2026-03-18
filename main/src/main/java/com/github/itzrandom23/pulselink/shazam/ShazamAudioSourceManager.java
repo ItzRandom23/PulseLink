@@ -48,6 +48,8 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	private static final Pattern URL_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/song/\\d+(?:/[^/?#]+)?", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ISRC_PATTERN = Pattern.compile("(?:\"isrc\"|\\\\\"isrc\\\\\")\\s*:\\s*\\\\?\"([A-Z]{2}[A-Z0-9]{3}\\d{7})\\\\?\"");
 	private static final Pattern DURATION_PATTERN = Pattern.compile("(?:\"duration\"|\\\\\"duration\\\\\")\\s*:\\s*\\\\?\"(PT[^\"]+)\\\\?\"");
+	private static final Pattern OG_TITLE_PATTERN = Pattern.compile("^(.+?) - (.+?)(?::|$)");
+	private static final Pattern ISO_DURATION_PATTERN = Pattern.compile("^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?$");
 	private static final int SEARCH_LIMIT = 10;
 
 	public ShazamAudioSourceManager(String[] providers, AudioPlayerManager audioPlayerManager) {
@@ -163,7 +165,7 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 
 		String artist = null;
 		if (title != null) {
-			Matcher ogMatch = Pattern.compile("^(.+?) - (.+?)(?::|$)").matcher(title);
+			Matcher ogMatch = OG_TITLE_PATTERN.matcher(title);
 			if (ogMatch.find()) {
 				title = ogMatch.group(1).trim();
 				artist = ogMatch.group(2).trim();
@@ -276,7 +278,7 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		if (isoDuration == null || isoDuration.isBlank()) {
 			return 0L;
 		}
-		Matcher matcher = Pattern.compile("^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?$").matcher(isoDuration);
+		Matcher matcher = ISO_DURATION_PATTERN.matcher(isoDuration);
 		if (!matcher.matches()) {
 			return 0L;
 		}

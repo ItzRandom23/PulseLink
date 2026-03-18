@@ -7,7 +7,6 @@ plugins:
       spotify: true
       amazonmusic: false
       applemusic: false
-      amazonmusic: false
       deezer: false
       yandexmusic: false
       vkmusic: false
@@ -18,6 +17,7 @@ plugins:
       audiomack: false
       gaana: false
       shazam: false
+      pandora: false
       flowerytts: false
       youtube: false
     lyrics-sources:
@@ -73,6 +73,13 @@ plugins:
     gaana:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
+    pandora:
+      # Optional. If omitted, PulseLink will try guest bootstrap automatically.
+      csrfToken: ""
+      # Optional pre-fetched auth token.
+      authToken: ""
+      # Optional token provider returning { success, authToken, csrfToken }.
+      remoteTokenUrl: ""
 server:
   port: 2333
   address: 0.0.0.0

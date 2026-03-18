@@ -23,6 +23,7 @@ public class SourcesConfig {
 	private boolean audiomack = false;
 	private boolean gaana = false;
 	private boolean shazam = false;
+	private boolean pandora = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -142,6 +143,14 @@ public class SourcesConfig {
 
 	public void setShazam(boolean shazam) {
 		this.shazam = shazam;
+	}
+
+	public boolean isPandora() {
+		return this.pandora;
+	}
+
+	public void setPandora(boolean pandora) {
+		this.pandora = pandora;
 	}
 
 }

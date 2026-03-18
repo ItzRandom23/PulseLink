@@ -18,7 +18,7 @@ If you want Lavalink to pull the plugin automatically via JitPack, add this to `
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.4.3"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.0"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -64,21 +64,34 @@ plugins:
     amazonmusic:
       # Optional. 0-10
       searchLimit: 10
+    applemusic:
+      countryCode: "US"
+      mediaAPIToken: "your apple music api token"
     tidal:
       countryCode: "US"
       searchLimit: 6
       token: "your tidal token"
       # Optional: direct streaming via hifi-api (third-party)
       hifiApis:
-        - "https://your-hifi-api.example"
+        - "https://hifi-two.spotisaver.net"
       # Optional: order of qualities to try for direct streaming
       hifiQualities: [ "HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW" ]
+    ytdlp:
+      path: "yt-dlp"
+      searchLimit: 10
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
     gaana:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
+    pandora:
+      # Optional. If omitted, PulseLink will try guest bootstrap automatically.
+      csrfToken: ""
+      # Optional pre-fetched auth token.
+      authToken: ""
+      # Optional token provider returning { success, authToken, csrfToken }.
+      remoteTokenUrl: "https://get.1lucas1apk.fun/pandora/gettoken"
 ```
 
 ## Releases
@@ -88,10 +101,12 @@ The GitHub Packages page is intended for the container image only, not Maven jar
 
 ## Providers and Mirroring
 
-PulseLink mirrors playback for services that do not stream directly (Spotify, Amazon Music, Apple Music, Tidal, Qobuz, Shazam).  
+PulseLink mirrors playback for services that do not stream directly (Spotify, Amazon Music, Apple Music, Tidal, Qobuz, Shazam, Pandora).  
 When a track is requested, PulseLink builds a provider query using the track ISRC if available, or a title/artist search fallback.
 
 Use the `plugins.pulselink.providers` list to decide where mirrored playback should be sourced from.
+
+The most complete config reference lives in [application.example.yml](https://github.com/ItzRandom23/PulseLink/blob/main/application.example.yml).
 
 ## Sources
 
@@ -103,7 +118,7 @@ Playback modes:
 |------------|----------|-------|
 | Spotify    | Mirror   | No credentials required |
 | Amazon Music | Mirror | No credentials required |
-| Apple Music| Mirror   | Requires Apple Music API token or MusicKit key |
+| Apple Music| Mirror   | Requires an Apple Music `mediaAPIToken` |
 | Tidal      | Mirror / Direct | Direct requires hifi-api; otherwise mirrors |
 | Qobuz      | Mirror   | Uses provider mirroring |
 | Deezer     | Direct   | Requires Deezer ARL and master key |
@@ -113,6 +128,7 @@ Playback modes:
 | Audiomack  | Direct   | Some regions return no stream URL |
 | Gaana      | Direct   | Uses configurable Gaana API (default included) |
 | Shazam     | Mirror   | No credentials required |
+| Pandora    | Mirror   | Guest bootstrap works automatically; remote token URL is optional |
 | yt-dlp     | Direct   | Requires `yt-dlp` installed |
 | FloweryTTS | Direct   | Optional TTS service |
 | YouTube    | Search   | Requires LavaSearch plugin |
@@ -132,7 +148,9 @@ Search prefixes:
 - Audiomack: `admsearch:query`
 - Gaana: `gnsearch:query`
 - Shazam: `szsearch:query`
+- Pandora: `pdsearch:query`
 - yt-dlp: `ytsearch:query`
+- YouTube Music autocomplete/search: `ytmsearch:query`
 
 Common URLs:
 - Spotify: `https://open.spotify.com/track/...`
@@ -147,14 +165,21 @@ Common URLs:
 - Audiomack: `https://audiomack.com/artist/song/...`
 - Gaana: `https://gaana.com/song/...`
 - Shazam: `https://www.shazam.com/song/...`
+- Pandora: `https://www.pandora.com/playlist/...`
+- Pandora: `https://www.pandora.com/station/...`
+- Pandora: `https://www.pandora.com/podcast/...`
+- Pandora: `https://www.pandora.com/artist/...`
 
 ## Region Notes
 
 - Audiomack may return a null stream URL in restricted regions.
 - Gaana uses direct HLS playback through the configured Gaana API endpoint.
+- Pandora may need a remote token provider if guest bootstrap is blocked in your region or environment.
 - Shazam resolves metadata directly and mirrors playback through `providers`.
 - Yandex and VK are region locked in some locations (use a proxy if needed).
 - Tidal direct streaming relies on a third-party hifi-api and currently supports FLAC/MP3 manifests (MP4/AAC manifests will fall back to mirroring).
+- `https://hifi-two.spotisaver.net` is one working `hifiApi` option, based on `https://github.com/uimaxbai/hifi-api`.
+- `https://get.1lucas1apk.fun/pandora/gettoken` is one working Pandora `remoteTokenUrl` option for guest token bootstrap.
 
 ## Credits
 

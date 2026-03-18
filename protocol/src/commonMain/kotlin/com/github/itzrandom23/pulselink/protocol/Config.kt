@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class Config(
     val spotify: SpotifyConfig? = null,
     val appleMusic: AppleMusicConfig? = null,
+    val pandora: PandoraConfig? = null,
     val deezer: DeezerConfig? = null,
     val yandexMusic: YandexMusicConfig? = null,
     val vkMusic: VkMusicConfig? = null,
@@ -25,6 +26,13 @@ data class SpotifyConfig(
 @Serializable
 data class AppleMusicConfig(
     val mediaAPIToken: String? = null,
+)
+
+@Serializable
+data class PandoraConfig(
+    val csrfToken: String? = null,
+    val authToken: String? = null,
+    val remoteTokenUrl: String? = null,
 )
 
 @Serializable

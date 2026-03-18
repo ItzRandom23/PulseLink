@@ -49,6 +49,7 @@ public class AmazonMusicSourceManager extends MirroringAudioSourceManager implem
 	private static final String API_BASE = "http://us2.leonodes.xyz:15482";
 	private static final int DEFAULT_SEARCH_LIMIT = 10;
 	private static final long FAILURE_CACHE_TTL_MS = 30_000L;
+	private static final int FAILURE_CACHE_CLEANUP_THRESHOLD = 256;
 
 	private int searchLimit = DEFAULT_SEARCH_LIMIT;
 	private final Map<String, Long> recentFailures = new ConcurrentHashMap<>();
@@ -253,11 +254,25 @@ public class AmazonMusicSourceManager extends MirroringAudioSourceManager implem
 
 	private boolean isRecentlyFailed(String identifier) {
 		Long last = recentFailures.get(identifier);
-		return last != null && (System.currentTimeMillis() - last) < FAILURE_CACHE_TTL_MS;
+		if (last == null) {
+			return false;
+		}
+
+		long now = System.currentTimeMillis();
+		if ((now - last) >= FAILURE_CACHE_TTL_MS) {
+			recentFailures.remove(identifier, last);
+			return false;
+		}
+
+		return true;
 	}
 
 	private void markFailed(String identifier) {
-		recentFailures.put(identifier, System.currentTimeMillis());
+		long now = System.currentTimeMillis();
+		recentFailures.put(identifier, now);
+		if (recentFailures.size() >= FAILURE_CACHE_CLEANUP_THRESHOLD) {
+			recentFailures.entrySet().removeIf(entry -> (now - entry.getValue()) >= FAILURE_CACHE_TTL_MS);
+		}
 	}
 
 	private JsonBrowser getDataJson(String pathPrefix, String url) throws IOException {

@@ -14,6 +14,7 @@ import com.github.itzrandom23.pulselink.gaana.GaanaAudioSourceManager;
 import com.github.itzrandom23.pulselink.jiosaavn.JioSaavnAudioSourceManager;
 import com.github.itzrandom23.pulselink.lrclib.LrcLibLyricsManager;
 import com.github.itzrandom23.pulselink.mirror.DefaultMirroringAudioTrackResolver;
+import com.github.itzrandom23.pulselink.pandora.PandoraSourceManager;
 import com.github.itzrandom23.pulselink.plugin.config.*;
 import com.github.itzrandom23.pulselink.plugin.service.ProxyConfigurationService;
 import com.github.itzrandom23.pulselink.protocol.Config;
@@ -59,6 +60,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private AudiomackAudioSourceManager audiomack;
 	private GaanaAudioSourceManager gaana;
 	private ShazamAudioSourceManager shazam;
+	private PandoraSourceManager pandora;
 	private LrcLibLyricsManager lrcLib;
 
 	public PulseLinkPlugin(
@@ -79,6 +81,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		JioSaavnConfig jioSaavnConfig,
 		AudiomackConfig audiomackConfig,
 		GaanaConfig gaanaConfig,
+		PandoraConfig pandoraConfig,
 		ProxyConfigurationService proxyConfigurationService
 	) {
 		log.info("Loading PulseLink plugin...");
@@ -86,25 +89,25 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		this.lyricsSourcesConfig = lyricsSourcesConfig;
 
 		if (sourcesConfig.isSpotify()) {
-    this.spotify = new SpotifySourceManager(
-        spotifyConfig.getCountryCode(),
-        unused -> manager,
-        new DefaultMirroringAudioTrackResolver(pluginConfig.getProviders())
-    );
+			this.spotify = new SpotifySourceManager(
+				spotifyConfig.getCountryCode(),
+				unused -> manager,
+				new DefaultMirroringAudioTrackResolver(pluginConfig.getProviders())
+			);
 
-    if (spotifyConfig.getPlaylistLoadLimit() > 0) {
-        this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
-    }
-    if (spotifyConfig.getAlbumLoadLimit() > 0) {
-        this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
-    }
-    if (!spotifyConfig.isResolveArtistsInSearch()) {
-        this.spotify.setResolveArtistsInSearch(spotifyConfig.isResolveArtistsInSearch());
-    }
-    if (spotifyConfig.isLocalFiles()) {
-        this.spotify.setLocalFiles(spotifyConfig.isLocalFiles());
-    }
-}
+			if (spotifyConfig.getPlaylistLoadLimit() > 0) {
+				this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
+			}
+			if (spotifyConfig.getAlbumLoadLimit() > 0) {
+				this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
+			}
+			if (!spotifyConfig.isResolveArtistsInSearch()) {
+				this.spotify.setResolveArtistsInSearch(spotifyConfig.isResolveArtistsInSearch());
+			}
+			if (spotifyConfig.isLocalFiles()) {
+				this.spotify.setLocalFiles(spotifyConfig.isLocalFiles());
+			}
+		}
 
 		if (sourcesConfig.isAmazonMusic()) {
 			this.amazonMusic = new AmazonMusicSourceManager(
@@ -240,6 +243,16 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			);
 		}
 
+		if (sourcesConfig.isPandora()) {
+			this.pandora = new PandoraSourceManager(
+				pluginConfig.getProviders(),
+				unused -> this.manager
+			);
+			this.pandora.setCsrfToken(pandoraConfig.getCsrfToken());
+			this.pandora.setAuthToken(pandoraConfig.getAuthToken());
+			this.pandora.setRemoteTokenUrl(pandoraConfig.getRemoteTokenUrl());
+		}
+
 	}
 
 	private boolean hasNewYoutubeSource() {
@@ -311,6 +324,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			log.info("Registering Shazam audio source manager...");
 			manager.registerSourceManager(this.shazam);
 		}
+		if (this.pandora != null) {
+			log.info("Registering Pandora audio source manager...");
+			manager.registerSourceManager(this.pandora);
+		}
 		return manager;
 	}
 
@@ -357,6 +374,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			log.info("Registering Shazam search manager...");
 			manager.registerSearchManager(this.shazam);
 		}
+		if (this.pandora != null && this.sourcesConfig.isPandora()) {
+			log.info("Registering Pandora search manager...");
+			manager.registerSearchManager(this.pandora);
+		}
 		return manager;
 	}
 
@@ -389,11 +410,10 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	@PatchMapping("/v4/pulselink/config")
 	public void updateConfig(@RequestBody Config config) {
 		var spotifyConfig = config.getSpotify();
-if (spotifyConfig != null && this.spotify != null) {
-    this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
-    this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
-   
-}
+		if (spotifyConfig != null && this.spotify != null) {
+			this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
+			this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
+		}
 
 
 		var appleMusicConfig = config.getAppleMusic();
@@ -453,6 +473,19 @@ if (spotifyConfig != null && this.spotify != null) {
 			}
 			if (ytdlpConfig.getCustomPlaybackArgs() != null) {
 				this.ytdlp.setCustomPlaybackArgs(ytdlpConfig.getCustomPlaybackArgs().toArray(String[]::new));
+			}
+		}
+
+		var pandoraConfig = config.getPandora();
+		if (pandoraConfig != null && this.pandora != null) {
+			if (pandoraConfig.getCsrfToken() != null) {
+				this.pandora.setCsrfToken(pandoraConfig.getCsrfToken());
+			}
+			if (pandoraConfig.getAuthToken() != null) {
+				this.pandora.setAuthToken(pandoraConfig.getAuthToken());
+			}
+			if (pandoraConfig.getRemoteTokenUrl() != null) {
+				this.pandora.setRemoteTokenUrl(pandoraConfig.getRemoteTokenUrl());
 			}
 		}
 	}

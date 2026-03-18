@@ -16,8 +16,12 @@ import java.util.regex.Pattern;
 public class AppleMusicTokenManager {
 
 	private static final Pattern TOKEN_PATTERN = Pattern.compile("ey[\\w-]+\\.[\\w-]+\\.[\\w-]+");
+	private static final CloseableHttpClient HTTP_CLIENT = HttpClients.custom()
+		.disableCookieManagement()
+		.disableAutomaticRetries()
+		.build();
 
-	private Token token;
+	private volatile Token token;
 
 	public AppleMusicTokenManager(String mediaAPIToken) throws IOException {
 		if (mediaAPIToken == null || mediaAPIToken.isEmpty()) {
@@ -54,23 +58,26 @@ public class AppleMusicTokenManager {
 		this.token = new Token(mediaAPIToken, json.get("root_https_origin").index(0).text(), Instant.ofEpochSecond(json.get("exp").asLong(0)));
 	}
 
-	private void fetchNewToken() throws IOException {
-		try (var httpClient = HttpClients.createDefault()) {
-			var mainPageHtml = fetchHtml(httpClient, "https://music.apple.com");
-			var tokenScriptUrl = extractTokenScriptUrl(mainPageHtml);
-
-			if (tokenScriptUrl == null) {
-				throw new IllegalStateException("Failed to locate token script URL.");
-			}
-
-			var tokenScriptContent = fetchHtml(httpClient, tokenScriptUrl);
-			var tokenMatcher = TOKEN_PATTERN.matcher(tokenScriptContent);
-
-			if (!tokenMatcher.find()) {
-				throw new IllegalStateException("Failed to extract token from script content.");
-			}
-			this.parseTokenData(tokenMatcher.group());
+	private synchronized void fetchNewToken() throws IOException {
+		Token currentToken = this.token;
+		if (currentToken != null && !currentToken.isExpired()) {
+			return;
 		}
+
+		var mainPageHtml = fetchHtml(HTTP_CLIENT, "https://music.apple.com");
+		var tokenScriptUrl = extractTokenScriptUrl(mainPageHtml);
+
+		if (tokenScriptUrl == null) {
+			throw new IllegalStateException("Failed to locate token script URL.");
+		}
+
+		var tokenScriptContent = fetchHtml(HTTP_CLIENT, tokenScriptUrl);
+		var tokenMatcher = TOKEN_PATTERN.matcher(tokenScriptContent);
+
+		if (!tokenMatcher.find()) {
+			throw new IllegalStateException("Failed to extract token from script content.");
+		}
+		this.parseTokenData(tokenMatcher.group());
 	}
 
 	private String fetchHtml(CloseableHttpClient httpClient, String url) throws IOException {
