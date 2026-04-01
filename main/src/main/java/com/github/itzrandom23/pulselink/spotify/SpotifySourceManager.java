@@ -46,37 +46,45 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
-    private static final String RESOLVER = "http://us2.leonodes.xyz:15561";
+    private static final String DEFAULT_RESOLVER = "http://us2.leonodes.xyz:15410";
     public static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.ALBUM,
             AudioSearchResult.Type.ARTIST, AudioSearchResult.Type.PLAYLIST, AudioSearchResult.Type.TRACK);
     private static final Logger log = LoggerFactory.getLogger(SpotifySourceManager.class);
 
     private final HttpInterfaceManager httpInterfaceManager = HttpClientTools.createDefaultThreadLocalManager();
     private final String countryCode;
+    private String resolver = DEFAULT_RESOLVER;
     private int playlistPageLimit = 6;
     private int albumPageLimit = 6;
     private boolean localFiles;
     private boolean resolveArtistsInSearch = true;
 
     public SpotifySourceManager(String[] providers, String countryCode, AudioPlayerManager audioPlayerManager) {
-        this(countryCode, unused -> audioPlayerManager,
+        this(countryCode, null, unused -> audioPlayerManager,
                 new DefaultMirroringAudioTrackResolver(providers));
     }
 
     public SpotifySourceManager(String[] providers, String countryCode,
             Function<Void, AudioPlayerManager> audioPlayerManager) {
-        this(countryCode, audioPlayerManager,
+        this(countryCode, null, audioPlayerManager,
                 new DefaultMirroringAudioTrackResolver(providers));
     }
 
     public SpotifySourceManager(String countryCode,
             AudioPlayerManager audioPlayerManager,
             MirroringAudioTrackResolver mirroringAudioTrackResolver) {
-        this(countryCode, unused -> audioPlayerManager,
+        this(countryCode, null, unused -> audioPlayerManager,
                 mirroringAudioTrackResolver);
     }
 
     public SpotifySourceManager(String countryCode,
+            Function<Void, AudioPlayerManager> audioPlayerManager,
+            MirroringAudioTrackResolver mirroringAudioTrackResolver) {
+        this(countryCode, null, audioPlayerManager, mirroringAudioTrackResolver);
+    }
+
+    public SpotifySourceManager(String countryCode,
+            String apiUrl,
             Function<Void, AudioPlayerManager> audioPlayerManager,
             MirroringAudioTrackResolver mirroringAudioTrackResolver) {
 
@@ -87,6 +95,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         }
 
         this.countryCode = countryCode;
+        this.setApiUrl(apiUrl);
 
         this.httpInterfaceManager.configureRequests(config -> RequestConfig.copy(config)
                 .setConnectTimeout(10000)
@@ -109,6 +118,15 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
 
     public void setResolveArtistsInSearch(boolean resolveArtistsInSearch) {
         this.resolveArtistsInSearch = resolveArtistsInSearch;
+    }
+
+    public void setApiUrl(String apiUrl) {
+        if (apiUrl == null || apiUrl.isBlank()) {
+            this.resolver = DEFAULT_RESOLVER;
+            return;
+        }
+
+        this.resolver = apiUrl;
     }
 
     @NotNull
@@ -144,7 +162,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                     StandardCharsets.UTF_8);
 
             var request = new HttpGet(
-                    RESOLVER + "/api/search?q=" + q);
+                    this.resolver + "/api/search?q=" + q);
 
             var json = PulseLinkTools.fetchResponseAsJson(
                     this.httpInterfaceManager.getInterface(),
@@ -215,7 +233,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 var encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
 
                 var request = new HttpGet(
-                        RESOLVER + "/api/search?q=" + encoded);
+                        this.resolver + "/api/search?q=" + encoded);
 
                 var json = PulseLinkTools.fetchResponseAsJson(
                         this.httpInterfaceManager.getInterface(),
@@ -345,7 +363,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         var encoded = URLEncoder.encode(identifier, StandardCharsets.UTF_8);
 
         var request = new HttpGet(
-                RESOLVER + "/api/resolve?url=" + encoded);
+                this.resolver + "/api/resolve?url=" + encoded);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),
@@ -359,7 +377,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         var encoded = URLEncoder.encode(identifier, StandardCharsets.UTF_8);
 
         var request = new HttpGet(
-                RESOLVER + "/api/recommendations?url=" + encoded);
+                this.resolver + "/api/recommendations?url=" + encoded);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),
@@ -371,7 +389,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     private AudioItem resolveArtist(String id) throws IOException {
 
         var request = new HttpGet(
-                RESOLVER + "/api/artist-top-tracks?id=" + id);
+                this.resolver + "/api/artist-top-tracks?id=" + id);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),

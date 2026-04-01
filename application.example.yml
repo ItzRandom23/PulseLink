@@ -27,6 +27,8 @@ plugins:
       vkmusic: false
       lrcLib: false
     spotify:
+      # Optional. Defaults to http://us2.leonodes.xyz:15410
+      apiUrl: "http://us2.leonodes.xyz:15410"
       countryCode: "US"
       playlistLoadLimit: 6
       albumLoadLimit: 6

@@ -16,6 +16,7 @@ data class Config(
 
 @Serializable
 data class SpotifyConfig(
+    val apiUrl: String? = null,
     val countryCode: String? = "US",
     val playlistLoadLimit: Int? = 6,
     val albumLoadLimit: Int? = 6,

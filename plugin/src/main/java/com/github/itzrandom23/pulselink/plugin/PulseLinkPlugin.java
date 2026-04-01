@@ -91,6 +91,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		if (sourcesConfig.isSpotify()) {
 			this.spotify = new SpotifySourceManager(
 				spotifyConfig.getCountryCode(),
+				spotifyConfig.getApiUrl(),
 				unused -> manager,
 				new DefaultMirroringAudioTrackResolver(pluginConfig.getProviders())
 			);
@@ -411,6 +412,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	public void updateConfig(@RequestBody Config config) {
 		var spotifyConfig = config.getSpotify();
 		if (spotifyConfig != null && this.spotify != null) {
+			this.spotify.setApiUrl(spotifyConfig.getApiUrl());
 			this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
 			this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
 		}
