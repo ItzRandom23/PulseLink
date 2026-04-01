@@ -18,7 +18,7 @@ If you want Lavalink to pull the plugin automatically via JitPack, add this to `
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.2"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.4"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -56,8 +56,8 @@ plugins:
       vkmusic: false
       lrcLib: false
     spotify:
-      # Optional. Defaults to http://us2.leonodes.xyz:15410
-      apiUrl: "http://us2.leonodes.xyz:15410"
+      # Optional. Defaults to http://us2.leonodes.xyz:15561
+      apiUrl: "http://us2.leonodes.xyz:15561"
       countryCode: "US"
       playlistLoadLimit: 6
       albumLoadLimit: 6
