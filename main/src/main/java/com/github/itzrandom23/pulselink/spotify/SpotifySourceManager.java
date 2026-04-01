@@ -46,7 +46,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
-    private static final String RESOLVER = "http://eu.leonodes.xyz:2450";
+    private static final String RESOLVER = "http://us2.leonodes.xyz:15561";
     public static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.ALBUM,
             AudioSearchResult.Type.ARTIST, AudioSearchResult.Type.PLAYLIST, AudioSearchResult.Type.TRACK);
     private static final Logger log = LoggerFactory.getLogger(SpotifySourceManager.class);
