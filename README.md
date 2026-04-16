@@ -4,13 +4,16 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ## Quick Start
 
-1. Build the plugin:
-```
-./gradlew :plugin:jar
-```
+1. Build the plugin with `./gradlew :plugin:jar`.
 2. Copy the jar from `plugin/build/libs/` into your Lavalink `plugins` folder.
 3. Add the config shown below to your `application.yml`.
 4. Start Lavalink.
+
+## Documentation
+
+- Local Docker example: `docker/docker-compose.example.yml`
+- Local application example: `docker/application.local.example.yml`
+- Full sample config: `application.example.yml`
 
 ## JitPack Install
 
@@ -18,7 +21,7 @@ If you want Lavalink to pull the plugin automatically via JitPack, add this to `
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.4"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.5"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -68,16 +71,22 @@ plugins:
       searchLimit: 10
     applemusic:
       countryCode: "US"
+      # Optional. Apple Music playback can work without this token.
       mediaAPIToken: "your apple music api token"
     tidal:
       countryCode: "US"
       searchLimit: 6
-      token: "your tidal token"
+      token: "i4ZDjcyhed7Mu47q"
       # Optional: direct streaming via hifi-api (third-party)
       hifiApis:
         - "https://hifi-two.spotisaver.net"
       # Optional: order of qualities to try for direct streaming
       hifiQualities: [ "HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW" ]
+    jiosaavn:
+      decryption:
+        algorithm: "DES"
+        secretKey: "38346591"
+        transformation: "DES/ECB/PKCS5Padding"
     ytdlp:
       path: "yt-dlp"
       searchLimit: 10
@@ -96,54 +105,61 @@ plugins:
       remoteTokenUrl: "https://get.1lucas1apk.fun/pandora/gettoken"
 ```
 
-## Releases
+## Runtime Status
 
-PulseLink ships jars through GitHub Releases and the GitHub Actions build artifacts.
-The GitHub Packages page is intended for the container image only, not Maven jars.
+PulseLink exposes a read-only status endpoint at `GET /v4/pulselink/status`.
+
+The response includes:
+
+- enabled sources
+- enabled lyrics sources
+- provider templates
+- readiness issues such as missing credentials or missing YouTube plugin support
+
+Secrets are not included in the response.
 
 ## Providers and Mirroring
 
-PulseLink mirrors playback for services that do not stream directly (Spotify, Amazon Music, Apple Music, Tidal, Qobuz, Shazam, Pandora).  
-When a track is requested, PulseLink builds a provider query using the track ISRC if available, or a title/artist search fallback.
+PulseLink mirrors playback for services that do not stream directly.
 
-Use the `plugins.pulselink.providers` list to decide where mirrored playback should be sourced from.
-
-The most complete config reference lives in [application.example.yml](https://github.com/ItzRandom23/PulseLink/blob/main/application.example.yml).
-
-## Sources
+When a track is requested, PulseLink builds a provider query using the track ISRC if available, then falls back to a title/artist query. Configure the fallback order with `plugins.pulselink.providers`.
 
 Playback modes:
-- Mirror: metadata only, audio comes from your providers.
+- Mirror: metadata only, audio comes from your configured providers.
 - Direct: PulseLink streams audio directly.
 
-| Source     | Playback | Notes |
-|------------|----------|-------|
-| Spotify    | Mirror   | No credentials required |
-| Amazon Music | Mirror | No credentials required |
-| Apple Music| Mirror   | Requires an Apple Music `mediaAPIToken` |
-| Tidal      | Mirror / Direct | Direct requires hifi-api; otherwise mirrors |
-| Qobuz      | Mirror   | Uses provider mirroring |
-| Deezer     | Direct   | Requires Deezer ARL and master key |
-| Yandex     | Direct   | Requires access token |
-| VK Music   | Direct   | Requires user token |
-| JioSaavn   | Direct   | Requires decryption key |
-| Audiomack  | Direct   | Some regions return no stream URL |
-| Gaana      | Direct   | Uses configurable Gaana API (default included) |
-| Shazam     | Mirror   | No credentials required |
-| Pandora    | Mirror   | Guest bootstrap works automatically; remote token URL is optional |
-| yt-dlp     | Direct   | Requires `yt-dlp` installed |
-| FloweryTTS | Direct   | Optional TTS service |
-| YouTube    | Search   | Requires LavaSearch plugin |
+| Source | Access | Notes |
+|--------|--------|-------|
+| Spotify | Mirror | `apiUrl` is optional. |
+| Amazon Music | Mirror | No credentials required. |
+| Apple Music | Mirror | `mediaAPIToken` is optional. |
+| Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
+| Qobuz | Mirror | No manual credentials required; optional app/user credentials can be supplied. |
+| Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
+| Yandex Music | Direct | Requires `accessToken`. |
+| VK Music | Direct | Requires `userToken`. |
+| JioSaavn | Direct | Uses built-in decryption defaults; `decryption` can be overridden in config. |
+| Audiomack | Direct | No credentials required. |
+| Gaana | Direct | No credentials required. |
+| Shazam | Mirror | No credentials required. |
+| Pandora | Mirror | Uses the built-in remote token provider; `remoteTokenUrl`, `csrfToken`, or `authToken` can override it. |
+| yt-dlp | Direct | Requires `yt-dlp` installed. |
+| FloweryTTS | Direct | No credentials required. |
+| YouTube | Search / Lyrics | Requires the new YouTube source plugin. |
 
-## Supported Queries
+Credentials and external requirements:
+- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, FloweryTTS
+- Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
+- Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
+- Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics
 
-Search prefixes:
+Supported search prefixes:
 - Spotify: `spsearch:query`
 - Amazon Music: `amzsearch:query`
 - Apple Music: `amsearch:query`
 - Deezer: `dzsearch:query`
-- Yandex: `ymsearch:query`
-- VK: `vksearch:query`
+- Yandex Music: `ymsearch:query`
+- VK Music: `vksearch:query`
 - Tidal: `tdsearch:query`
 - Qobuz: `qbsearch:query`
 - JioSaavn: `jssearch:query`
@@ -154,34 +170,43 @@ Search prefixes:
 - yt-dlp: `ytsearch:query`
 - YouTube Music autocomplete/search: `ytmsearch:query`
 
-Common URLs:
-- Spotify: `https://open.spotify.com/track/...`
-- Amazon Music: `https://music.amazon.com/tracks/...`
-- Apple Music: `https://music.apple.com/...`
-- Deezer: `https://www.deezer.com/track/...`
-- Yandex: `https://music.yandex.ru/track/...`
-- VK: `https://vk.com/audio...`
-- Tidal: `https://tidal.com/browse/track/...`
-- Qobuz: `https://open.qobuz.com/track/...`
-- JioSaavn: `https://www.jiosaavn.com/song/...`
-- Audiomack: `https://audiomack.com/artist/song/...`
-- Gaana: `https://gaana.com/song/...`
-- Shazam: `https://www.shazam.com/song/...`
-- Pandora: `https://www.pandora.com/playlist/...`
-- Pandora: `https://www.pandora.com/station/...`
-- Pandora: `https://www.pandora.com/podcast/...`
-- Pandora: `https://www.pandora.com/artist/...`
+## Releases
 
-## Region Notes
+PulseLink ships jars through GitHub Releases and GitHub Actions build artifacts. The GitHub Packages page is intended for the container image only, not Maven jars.
 
-- Audiomack may return a null stream URL in restricted regions.
-- Gaana uses direct HLS playback through the configured Gaana API endpoint.
-- Pandora may need a remote token provider if guest bootstrap is blocked in your region or environment.
-- Shazam resolves metadata directly and mirrors playback through `providers`.
-- Yandex and VK are region locked in some locations (use a proxy if needed).
-- Tidal direct streaming relies on a third-party hifi-api and currently supports FLAC/MP3 manifests (MP4/AAC manifests will fall back to mirroring).
-- `https://hifi-two.spotisaver.net` is one working `hifiApi` option, based on `https://github.com/uimaxbai/hifi-api`.
-- `https://get.1lucas1apk.fun/pandora/gettoken` is one working Pandora `remoteTokenUrl` option for guest token bootstrap.
+Versioning is currently manual in `build.gradle`.
+
+Artifacts:
+- Plugin jar: `plugin/build/libs/pulselink-plugin-<version>.jar`
+- Main jar: `main/build/libs/pulselink-<version>.jar`
+- Container image: `ghcr.io/itzrandom23/pulselink:<tag>`
+
+## Local Docker
+
+Example local deployment files are included:
+- `docker/docker-compose.example.yml`
+- `docker/application.local.example.yml`
+
+They provide a minimal Lavalink + PulseLink setup using the published container image.
+
+## Troubleshooting
+
+Common checks:
+- If mirrored tracks do not resolve, verify your `providers` order and keep a `%QUERY%` fallback after `%ISRC%`.
+- If YouTube search or lyrics is enabled, the new YouTube source plugin must also be available.
+- If a source appears enabled but unusable, check `GET /v4/pulselink/status` for readiness issues.
+- The runtime PATCH endpoint only updates mutable fields present in the payload; null fields are ignored.
+- Local Gradle builds require Java 17.
+
+## Contributing
+
+- Prefer small, focused changes.
+- Add deterministic unit tests for resolver logic, registration behavior, and config/status safety when you touch those areas.
+- Update this README when config, release expectations, or operational behavior changes.
+
+## Security
+
+Please report security issues privately through GitHub Security Advisories for this repository rather than opening a public issue.
 
 ## Credits
 

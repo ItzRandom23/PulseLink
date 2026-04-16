@@ -8,9 +8,11 @@ import java.util.List;
 @ConfigurationProperties(prefix = "plugins.pulselink.tidal")
 @Component
 public class TidalConfig {
+	private static final String DEFAULT_TOKEN = "i4ZDjcyhed7Mu47q";
+
 	private String countryCode;
 	private int searchLimit;
-	private String token;
+	private String token = DEFAULT_TOKEN;
 	private List<String> hifiApis;
 	private List<String> hifiQualities;
 

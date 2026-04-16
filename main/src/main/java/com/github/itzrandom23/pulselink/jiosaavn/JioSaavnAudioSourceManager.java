@@ -391,16 +391,17 @@ public class JioSaavnAudioSourceManager extends ExtendedAudioSourceManager imple
 	}
 
 	public static class JioSaavnConfig {
+		private static final String DEFAULT_SECRET_KEY = "38346591";
 		private static final String DEFAULT_ALGORITHM = "DES";
 		private static final String DEFAULT_TRANSFORMATION = "DES/ECB/PKCS5Padding";
 		private static final int DEFAULT_ARTIST_TOP_TRACKS_REQUEST_LIMIT = 20;
 
 		@NotNull
-		private String secretKey = DEFAULT_ALGORITHM;
+		private String secretKey = DEFAULT_SECRET_KEY;
 		@NotNull
-		private String algorithm = DEFAULT_TRANSFORMATION;
+		private String algorithm = DEFAULT_ALGORITHM;
 		@NotNull
-		private String transformation;
+		private String transformation = DEFAULT_TRANSFORMATION;
 		private int artistTopTracksRequestLimit = DEFAULT_ARTIST_TOP_TRACKS_REQUEST_LIMIT;
 
 		public JioSaavnConfig(@NotNull String secretKey) {

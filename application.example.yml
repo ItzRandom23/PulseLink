@@ -2,6 +2,8 @@ plugins:
   pulselink:
     providers:
       - "ytsearch:\"%ISRC%\""
+      - "tdsearch:%QUERY%"
+      - "jssearch:%QUERY%"
       - "ytsearch:%QUERY%"
     sources:
       spotify: true
@@ -39,6 +41,7 @@ plugins:
       searchLimit: 10
     applemusic:
       countryCode: "US"
+      # Optional. Apple Music playback can work without this token.
       mediaAPIToken: "your apple music api token"
     deezer:
       masterDecryptionKey: "your master decryption key"
@@ -57,18 +60,16 @@ plugins:
     tidal:
       countryCode: "US"
       searchLimit: 6
-      token: "your tidal token"
+      # Optional. Override only if you want to use your own Tidal token.
+      # token: "your tidal token"
       # Optional: direct streaming via hifi-api (third-party)
       hifiApis:
-        - "https://your-hifi-api.example"
+        - "https://hifi-two.spotisaver.net"
       # Optional: order of qualities to try for direct streaming
       hifiQualities: [ "HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW" ]
     ytdlp:
       path: "yt-dlp"
       searchLimit: 10
-    jiosaavn:
-      decryption:
-        secretKey: "your secret key"
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
@@ -76,12 +77,16 @@ plugins:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
     pandora:
-      # Optional. If omitted, PulseLink will try guest bootstrap automatically.
       csrfToken: ""
-      # Optional pre-fetched auth token.
       authToken: ""
-      # Optional token provider returning { success, authToken, csrfToken }.
-      remoteTokenUrl: ""
+      # Optional. Override only if you want to use your own token provider.
+      # remoteTokenUrl: "https://get.1lucas1apk.fun/pandora/gettoken"
+    jiosaavn:
+      # Built-in defaults are used if you do not override them.
+      # decryption:
+      #   algorithm: DES
+      #   secretKey: "38346591"
+      #   transformation: DES/ECB/PKCS5Padding
 server:
   port: 2333
   address: 0.0.0.0

@@ -32,9 +32,16 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RestController
@@ -42,8 +49,15 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 
 	private static final Logger log = LoggerFactory.getLogger(PulseLinkPlugin.class);
 
+	private final PulseLinkConfig pluginConfig;
 	private final SourcesConfig sourcesConfig;
 	private final LyricsSourcesConfig lyricsSourcesConfig;
+	private final AppleMusicConfig appleMusicConfig;
+	private final DeezerConfig deezerConfig;
+	private final YandexMusicConfig yandexMusicConfig;
+	private final VkMusicConfig vkMusicConfig;
+	private final QobuzConfig qobuzConfig;
+	private final PandoraConfig pandoraConfig;
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
 	private AmazonMusicSourceManager amazonMusic;
@@ -85,8 +99,15 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		ProxyConfigurationService proxyConfigurationService
 	) {
 		log.info("Loading PulseLink plugin...");
+		this.pluginConfig = pluginConfig;
 		this.sourcesConfig = sourcesConfig;
 		this.lyricsSourcesConfig = lyricsSourcesConfig;
+		this.appleMusicConfig = appleMusicConfig;
+		this.deezerConfig = deezerConfig;
+		this.yandexMusicConfig = yandexMusicConfig;
+		this.vkMusicConfig = vkMusicConfig;
+		this.qobuzConfig = qobuzConfig;
+		this.pandoraConfig = pandoraConfig;
 
 		if (sourcesConfig.isSpotify()) {
 			this.spotify = new SpotifySourceManager(
@@ -269,226 +290,270 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	@Override
 	public AudioPlayerManager configure(@NotNull AudioPlayerManager manager) {
 		this.manager = manager;
-		if (this.spotify != null && this.sourcesConfig.isSpotify()) {
-			log.info("Registering Spotify audio source manager...");
-			manager.registerSourceManager(this.spotify);
-		}
-		if (this.amazonMusic != null && this.sourcesConfig.isAmazonMusic()) {
-			log.info("Registering Amazon Music audio source manager...");
-			manager.registerSourceManager(this.amazonMusic);
-		}
-		if (this.appleMusic != null) {
-			log.info("Registering Apple Music audio source manager...");
-			manager.registerSourceManager(this.appleMusic);
-		}
-		if (this.deezer != null && this.sourcesConfig.isDeezer()) {
-			log.info("Registering Deezer audio source manager...");
-			manager.registerSourceManager(this.deezer);
-		}
-		if (this.yandexMusic != null) {
-			log.info("Registering Yandex Music audio source manager...");
-			manager.registerSourceManager(this.yandexMusic);
-		}
-		if (this.flowerytts != null) {
-			log.info("Registering Flowery TTS audio source manager...");
-			manager.registerSourceManager(this.flowerytts);
-		}
-		if (this.vkMusic != null) {
-			log.info("Registering Vk Music audio source manager...");
-			manager.registerSourceManager(this.vkMusic);
-		}
-		if (this.tidal != null) {
-			log.info("Registering Tidal audio source manager...");
-			manager.registerSourceManager(this.tidal);
-		}
-		if (this.qobuz != null) {
-			log.info("Registering Qobuz audio source manager...");
-			manager.registerSourceManager(this.qobuz);
-		}
-		if (this.ytdlp != null) {
-			log.info("Registering YTDLP audio source manager...");
-			manager.registerSourceManager(this.ytdlp);
-		}
-		if (this.jioSaavn != null) {
-			log.info("Registering JioSaavn audio source manager...");
-			manager.registerSourceManager(this.jioSaavn);
-		}
-		if (this.audiomack != null) {
-			log.info("Registering Audiomack audio source manager...");
-			manager.registerSourceManager(this.audiomack);
-		}
-		if (this.gaana != null) {
-			log.info("Registering Gaana audio source manager...");
-			manager.registerSourceManager(this.gaana);
-		}
-		if (this.shazam != null) {
-			log.info("Registering Shazam audio source manager...");
-			manager.registerSourceManager(this.shazam);
-		}
-		if (this.pandora != null) {
-			log.info("Registering Pandora audio source manager...");
-			manager.registerSourceManager(this.pandora);
-		}
+		registerAudioSource("Spotify", this.spotify, this.sourcesConfig.isSpotify(), () -> manager.registerSourceManager(this.spotify));
+		registerAudioSource("Amazon Music", this.amazonMusic, this.sourcesConfig.isAmazonMusic(), () -> manager.registerSourceManager(this.amazonMusic));
+		registerAudioSource("Apple Music", this.appleMusic, this.sourcesConfig.isAppleMusic(), () -> manager.registerSourceManager(this.appleMusic));
+		registerAudioSource("Deezer", this.deezer, this.sourcesConfig.isDeezer(), () -> manager.registerSourceManager(this.deezer));
+		registerAudioSource("Yandex Music", this.yandexMusic, this.sourcesConfig.isYandexMusic(), () -> manager.registerSourceManager(this.yandexMusic));
+		registerAudioSource("Flowery TTS", this.flowerytts, this.sourcesConfig.isFloweryTTS(), () -> manager.registerSourceManager(this.flowerytts));
+		registerAudioSource("VK Music", this.vkMusic, this.sourcesConfig.isVkMusic(), () -> manager.registerSourceManager(this.vkMusic));
+		registerAudioSource("Tidal", this.tidal, this.sourcesConfig.isTidal(), () -> manager.registerSourceManager(this.tidal));
+		registerAudioSource("Qobuz", this.qobuz, this.sourcesConfig.isQobuz(), () -> manager.registerSourceManager(this.qobuz));
+		registerAudioSource("YTDLP", this.ytdlp, this.sourcesConfig.isYtdlp(), () -> manager.registerSourceManager(this.ytdlp));
+		registerAudioSource("JioSaavn", this.jioSaavn, this.sourcesConfig.isJiosaavn(), () -> manager.registerSourceManager(this.jioSaavn));
+		registerAudioSource("Audiomack", this.audiomack, this.sourcesConfig.isAudiomack(), () -> manager.registerSourceManager(this.audiomack));
+		registerAudioSource("Gaana", this.gaana, this.sourcesConfig.isGaana(), () -> manager.registerSourceManager(this.gaana));
+		registerAudioSource("Shazam", this.shazam, this.sourcesConfig.isShazam(), () -> manager.registerSourceManager(this.shazam));
+		registerAudioSource("Pandora", this.pandora, this.sourcesConfig.isPandora(), () -> manager.registerSourceManager(this.pandora));
 		return manager;
 	}
 
 	@Override
 	@NotNull
 	public SearchManager configure(@NotNull SearchManager manager) {
-		if (this.spotify != null && this.sourcesConfig.isSpotify()) {
-			log.info("Registering Spotify search manager...");
-			manager.registerSearchManager(this.spotify);
-		}
-		if (this.amazonMusic != null && this.sourcesConfig.isAmazonMusic()) {
-			log.info("Registering Amazon Music search manager...");
-			manager.registerSearchManager(this.amazonMusic);
-		}
-		if (this.appleMusic != null && this.sourcesConfig.isAppleMusic()) {
-			log.info("Registering Apple Music search manager...");
-			manager.registerSearchManager(this.appleMusic);
-		}
-		if (this.deezer != null && this.sourcesConfig.isDeezer()) {
-			log.info("Registering Deezer search manager...");
-			manager.registerSearchManager(this.deezer);
-		}
-		if (this.youtube != null && this.sourcesConfig.isYoutube()) {
-			log.info("Registering Youtube search manager...");
-			manager.registerSearchManager(this.youtube);
-		}
-		if (this.yandexMusic != null && this.sourcesConfig.isYandexMusic()) {
-			log.info("Registering Yandex Music search manager...");
-			manager.registerSearchManager(this.yandexMusic);
-		}
-		if (this.vkMusic != null && this.sourcesConfig.isVkMusic()) {
-			log.info("Registering VK Music search manager...");
-			manager.registerSearchManager(this.vkMusic);
-		}
-		if (this.jioSaavn != null && this.sourcesConfig.isJiosaavn()) {
-			log.info("Registering JioSaavn search manager...");
-			manager.registerSearchManager(this.jioSaavn);
-		}
-		if (this.audiomack != null && this.sourcesConfig.isAudiomack()) {
-			log.info("Registering Audiomack search manager...");
-			manager.registerSearchManager(this.audiomack);
-		}
-		if (this.shazam != null && this.sourcesConfig.isShazam()) {
-			log.info("Registering Shazam search manager...");
-			manager.registerSearchManager(this.shazam);
-		}
-		if (this.pandora != null && this.sourcesConfig.isPandora()) {
-			log.info("Registering Pandora search manager...");
-			manager.registerSearchManager(this.pandora);
-		}
+		registerSearchSource("Spotify", this.spotify, this.sourcesConfig.isSpotify(), () -> manager.registerSearchManager(this.spotify));
+		registerSearchSource("Amazon Music", this.amazonMusic, this.sourcesConfig.isAmazonMusic(), () -> manager.registerSearchManager(this.amazonMusic));
+		registerSearchSource("Apple Music", this.appleMusic, this.sourcesConfig.isAppleMusic(), () -> manager.registerSearchManager(this.appleMusic));
+		registerSearchSource("Deezer", this.deezer, this.sourcesConfig.isDeezer(), () -> manager.registerSearchManager(this.deezer));
+		registerSearchSource("Youtube", this.youtube, this.sourcesConfig.isYoutube(), () -> manager.registerSearchManager(this.youtube));
+		registerSearchSource("Yandex Music", this.yandexMusic, this.sourcesConfig.isYandexMusic(), () -> manager.registerSearchManager(this.yandexMusic));
+		registerSearchSource("VK Music", this.vkMusic, this.sourcesConfig.isVkMusic(), () -> manager.registerSearchManager(this.vkMusic));
+		registerSearchSource("JioSaavn", this.jioSaavn, this.sourcesConfig.isJiosaavn(), () -> manager.registerSearchManager(this.jioSaavn));
+		registerSearchSource("Audiomack", this.audiomack, this.sourcesConfig.isAudiomack(), () -> manager.registerSearchManager(this.audiomack));
+		registerSearchSource("Shazam", this.shazam, this.sourcesConfig.isShazam(), () -> manager.registerSearchManager(this.shazam));
+		registerSearchSource("Pandora", this.pandora, this.sourcesConfig.isPandora(), () -> manager.registerSearchManager(this.pandora));
 		return manager;
 	}
 
 	@NotNull
 	@Override
 	public LyricsManager configure(@NotNull LyricsManager manager) {
-		if (this.deezer != null && this.lyricsSourcesConfig.isDeezer()) {
-			log.info("Registering Deezer lyrics manager...");
-			manager.registerLyricsManager(this.deezer);
-		}
-		if (this.youtube != null && this.lyricsSourcesConfig.isYoutube()) {
-			log.info("Registering YouTube lyrics manager...");
-			manager.registerLyricsManager(this.youtube);
-		}
-		if (this.yandexMusic != null && this.lyricsSourcesConfig.isYandexMusic()) {
-			log.info("Registering Yandex Music lyrics manager");
-			manager.registerLyricsManager(this.yandexMusic);
-		}
-		if (this.vkMusic != null && this.lyricsSourcesConfig.isVkMusic()) {
-			log.info("Registering VK Music lyrics manager...");
-			manager.registerLyricsManager(this.vkMusic);
-		}
-		if (this.lrcLib != null && this.lyricsSourcesConfig.isLrcLib()) {
-			log.info("Registering LRCLIB lyrics manager...");
-			manager.registerLyricsManager(this.lrcLib);
-		}
+		registerLyricsSource("Deezer", this.deezer, this.lyricsSourcesConfig.isDeezer(), () -> manager.registerLyricsManager(this.deezer));
+		registerLyricsSource("YouTube", this.youtube, this.lyricsSourcesConfig.isYoutube(), () -> manager.registerLyricsManager(this.youtube));
+		registerLyricsSource("Yandex Music", this.yandexMusic, this.lyricsSourcesConfig.isYandexMusic(), () -> manager.registerLyricsManager(this.yandexMusic));
+		registerLyricsSource("VK Music", this.vkMusic, this.lyricsSourcesConfig.isVkMusic(), () -> manager.registerLyricsManager(this.vkMusic));
+		registerLyricsSource("LRCLIB", this.lrcLib, this.lyricsSourcesConfig.isLrcLib(), () -> manager.registerLyricsManager(this.lrcLib));
 		return manager;
+	}
+
+	@GetMapping("/v4/pulselink/status")
+	public PulseLinkStatus getStatus() {
+		List<String> readinessIssues = getReadinessIssues();
+		return new PulseLinkStatus(
+			readinessIssues.isEmpty(),
+			getEnabledSources(),
+			getEnabledLyricsSources(),
+			getProviderTemplates(),
+			readinessIssues
+		);
 	}
 
 	@PatchMapping("/v4/pulselink/config")
 	public void updateConfig(@RequestBody Config config) {
-		var spotifyConfig = config.getSpotify();
-		if (spotifyConfig != null && this.spotify != null) {
-			this.spotify.setApiUrl(spotifyConfig.getApiUrl());
-			this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
-			this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
-		}
-
-
-		var appleMusicConfig = config.getAppleMusic();
-		if (appleMusicConfig != null && this.appleMusic != null && appleMusicConfig.getMediaAPIToken() != null) {
-			this.appleMusic.setMediaAPIToken(appleMusicConfig.getMediaAPIToken());
-		}
-
-		var deezerConfig = config.getDeezer();
-		if (deezerConfig != null && this.deezer != null) {
-			if (deezerConfig.getArl() != null) {
-				this.deezer.setArl(deezerConfig.getArl());
+		try {
+			var spotifyConfig = config.getSpotify();
+			if (spotifyConfig != null && this.spotify != null) {
+				if (spotifyConfig.getApiUrl() != null) {
+					this.spotify.setApiUrl(spotifyConfig.getApiUrl());
+				}
+				if (spotifyConfig.getPlaylistLoadLimit() != null && spotifyConfig.getPlaylistLoadLimit() > 0) {
+					this.spotify.setPlaylistPageLimit(spotifyConfig.getPlaylistLoadLimit());
+				}
+				if (spotifyConfig.getAlbumLoadLimit() != null && spotifyConfig.getAlbumLoadLimit() > 0) {
+					this.spotify.setAlbumPageLimit(spotifyConfig.getAlbumLoadLimit());
+				}
 			}
-			if (deezerConfig.getFormats() != null) {
-				this.deezer.setFormats(deezerConfig.getFormats()
-					.stream()
-					.map(deezerTrackFormat -> DeezerAudioTrack.TrackFormat.from(deezerTrackFormat.name()))
-					.toList()
-					.toArray(new DeezerAudioTrack.TrackFormat[0]));
-			}
-		}
 
-		var yandexMusicConfig = config.getYandexMusic();
-		if (yandexMusicConfig != null && this.yandexMusic != null) {
-			if (yandexMusicConfig.getAccessToken() != null) {
+			var appleMusicConfig = config.getAppleMusic();
+			if (appleMusicConfig != null && this.appleMusic != null && appleMusicConfig.getMediaAPIToken() != null) {
+				this.appleMusic.setMediaAPIToken(appleMusicConfig.getMediaAPIToken());
+			}
+
+			var deezerConfig = config.getDeezer();
+			if (deezerConfig != null && this.deezer != null) {
+				if (deezerConfig.getArl() != null) {
+					this.deezer.setArl(deezerConfig.getArl());
+				}
+				if (deezerConfig.getFormats() != null) {
+					this.deezer.setFormats(deezerConfig.getFormats()
+						.stream()
+						.map(deezerTrackFormat -> DeezerAudioTrack.TrackFormat.from(deezerTrackFormat.name()))
+						.toList()
+						.toArray(new DeezerAudioTrack.TrackFormat[0]));
+				}
+			}
+
+			var yandexMusicConfig = config.getYandexMusic();
+			if (yandexMusicConfig != null && this.yandexMusic != null && yandexMusicConfig.getAccessToken() != null) {
 				this.yandexMusic.setAccessToken(yandexMusicConfig.getAccessToken());
 			}
-		}
 
-		var vkMusicConfig = config.getVkMusic();
-		if (vkMusicConfig != null && this.vkMusic != null) {
-			if (vkMusicConfig.getUserToken() != null) {
+			var vkMusicConfig = config.getVkMusic();
+			if (vkMusicConfig != null && this.vkMusic != null && vkMusicConfig.getUserToken() != null) {
 				this.vkMusic.setUserToken(vkMusicConfig.getUserToken());
 			}
-		}
 
-		var qobuzConfig = config.getQobuz();
-		if (qobuzConfig != null && this.qobuz != null) {
-			if (qobuzConfig.getUserOauthToken() != null) {
-				this.qobuz.setUserOauthToken(qobuzConfig.getUserOauthToken());
+			var qobuzConfig = config.getQobuz();
+			if (qobuzConfig != null && this.qobuz != null) {
+				if (qobuzConfig.getUserOauthToken() != null) {
+					this.qobuz.setUserOauthToken(qobuzConfig.getUserOauthToken());
+				}
+				if (qobuzConfig.getAppId() != null && qobuzConfig.getAppSecret() != null) {
+					this.qobuz.setAppId(qobuzConfig.getAppId());
+					this.qobuz.setAppSecret(qobuzConfig.getAppSecret());
+				}
 			}
-			if (qobuzConfig.getAppId() != null && qobuzConfig.getAppSecret() != null) {
-				this.qobuz.setAppId(qobuzConfig.getAppId());
-				this.qobuz.setAppSecret(qobuzConfig.getAppSecret());
-			}
-		}
 
-		var ytdlpConfig = config.getYtdlp();
-		if (ytdlpConfig != null && this.ytdlp != null) {
-			if (ytdlpConfig.getPath() != null) {
-				this.ytdlp.setPath(ytdlpConfig.getPath());
+			var ytdlpConfig = config.getYtdlp();
+			if (ytdlpConfig != null && this.ytdlp != null) {
+				if (ytdlpConfig.getPath() != null) {
+					this.ytdlp.setPath(ytdlpConfig.getPath());
+				}
+				if (ytdlpConfig.getSearchLimit() != null && ytdlpConfig.getSearchLimit() > 0) {
+					this.ytdlp.setSearchLimit(ytdlpConfig.getSearchLimit());
+				}
+				if (ytdlpConfig.getCustomLoadArgs() != null) {
+					this.ytdlp.setCustomLoadArgs(ytdlpConfig.getCustomLoadArgs().toArray(String[]::new));
+				}
+				if (ytdlpConfig.getCustomPlaybackArgs() != null) {
+					this.ytdlp.setCustomPlaybackArgs(ytdlpConfig.getCustomPlaybackArgs().toArray(String[]::new));
+				}
 			}
-			if (ytdlpConfig.getSearchLimit() > 0) {
-				this.ytdlp.setSearchLimit(ytdlpConfig.getSearchLimit());
-			}
-			if (ytdlpConfig.getCustomLoadArgs() != null) {
-				this.ytdlp.setCustomLoadArgs(ytdlpConfig.getCustomLoadArgs().toArray(String[]::new));
-			}
-			if (ytdlpConfig.getCustomPlaybackArgs() != null) {
-				this.ytdlp.setCustomPlaybackArgs(ytdlpConfig.getCustomPlaybackArgs().toArray(String[]::new));
-			}
-		}
 
-		var pandoraConfig = config.getPandora();
-		if (pandoraConfig != null && this.pandora != null) {
-			if (pandoraConfig.getCsrfToken() != null) {
-				this.pandora.setCsrfToken(pandoraConfig.getCsrfToken());
+			var pandoraConfig = config.getPandora();
+			if (pandoraConfig != null && this.pandora != null) {
+				if (pandoraConfig.getCsrfToken() != null) {
+					this.pandora.setCsrfToken(pandoraConfig.getCsrfToken());
+				}
+				if (pandoraConfig.getAuthToken() != null) {
+					this.pandora.setAuthToken(pandoraConfig.getAuthToken());
+				}
+				if (pandoraConfig.getRemoteTokenUrl() != null) {
+					this.pandora.setRemoteTokenUrl(pandoraConfig.getRemoteTokenUrl());
+				}
 			}
-			if (pandoraConfig.getAuthToken() != null) {
-				this.pandora.setAuthToken(pandoraConfig.getAuthToken());
-			}
-			if (pandoraConfig.getRemoteTokenUrl() != null) {
-				this.pandora.setRemoteTokenUrl(pandoraConfig.getRemoteTokenUrl());
-			}
+
+			log.info("PulseLink runtime config patch applied successfully.");
+		} catch (RuntimeException exception) {
+			log.error("PulseLink runtime config patch failed.", exception);
+			throw exception;
 		}
+	}
+
+	Map<String, Boolean> getEnabledSources() {
+		Map<String, Boolean> enabledSources = new LinkedHashMap<>();
+		enabledSources.put("spotify", this.sourcesConfig.isSpotify());
+		enabledSources.put("amazonMusic", this.sourcesConfig.isAmazonMusic());
+		enabledSources.put("appleMusic", this.sourcesConfig.isAppleMusic());
+		enabledSources.put("deezer", this.sourcesConfig.isDeezer());
+		enabledSources.put("yandexMusic", this.sourcesConfig.isYandexMusic());
+		enabledSources.put("floweryTTS", this.sourcesConfig.isFloweryTTS());
+		enabledSources.put("youtube", this.sourcesConfig.isYoutube());
+		enabledSources.put("vkMusic", this.sourcesConfig.isVkMusic());
+		enabledSources.put("qobuz", this.sourcesConfig.isQobuz());
+		enabledSources.put("tidal", this.sourcesConfig.isTidal());
+		enabledSources.put("ytdlp", this.sourcesConfig.isYtdlp());
+		enabledSources.put("jiosaavn", this.sourcesConfig.isJiosaavn());
+		enabledSources.put("audiomack", this.sourcesConfig.isAudiomack());
+		enabledSources.put("gaana", this.sourcesConfig.isGaana());
+		enabledSources.put("shazam", this.sourcesConfig.isShazam());
+		enabledSources.put("pandora", this.sourcesConfig.isPandora());
+		return enabledSources;
+	}
+
+	Map<String, Boolean> getEnabledLyricsSources() {
+		Map<String, Boolean> enabledLyricsSources = new LinkedHashMap<>();
+		enabledLyricsSources.put("deezer", this.lyricsSourcesConfig.isDeezer());
+		enabledLyricsSources.put("youtube", this.lyricsSourcesConfig.isYoutube());
+		enabledLyricsSources.put("yandexMusic", this.lyricsSourcesConfig.isYandexMusic());
+		enabledLyricsSources.put("vkMusic", this.lyricsSourcesConfig.isVkMusic());
+		enabledLyricsSources.put("lrcLib", this.lyricsSourcesConfig.isLrcLib());
+		return enabledLyricsSources;
+	}
+
+	List<String> getProviderTemplates() {
+		String[] providers = this.pluginConfig.getProviders();
+		if (providers == null || providers.length == 0) {
+			return List.of();
+		}
+		return Arrays.asList(providers);
+	}
+
+	List<String> getReadinessIssues() {
+		List<String> issues = new ArrayList<>();
+		if (this.sourcesConfig.isAppleMusic() && !hasText(this.appleMusicConfig.getMediaAPIToken())) {
+			issues.add("Apple Music is enabled but mediaAPIToken is missing.");
+		}
+		if ((this.sourcesConfig.isDeezer() || this.lyricsSourcesConfig.isDeezer()) && !hasText(this.deezerConfig.getArl())) {
+			issues.add("Deezer is enabled but arl is missing.");
+		}
+		if ((this.sourcesConfig.isDeezer() || this.lyricsSourcesConfig.isDeezer()) && !hasText(this.deezerConfig.getMasterDecryptionKey())) {
+			issues.add("Deezer is enabled but masterDecryptionKey is missing.");
+		}
+		if ((this.sourcesConfig.isYandexMusic() || this.lyricsSourcesConfig.isYandexMusic()) && !hasText(this.yandexMusicConfig.getAccessToken())) {
+			issues.add("Yandex Music is enabled but accessToken is missing.");
+		}
+		if ((this.sourcesConfig.isVkMusic() || this.lyricsSourcesConfig.isVkMusic()) && !hasText(this.vkMusicConfig.getUserToken())) {
+			issues.add("VK Music is enabled but userToken is missing.");
+		}
+		if (this.sourcesConfig.isQobuz() && !hasText(this.qobuzConfig.getUserOauthToken()) && !hasText(this.qobuzConfig.getAppId())) {
+			issues.add("Qobuz is enabled but no userOauthToken or app credentials are configured.");
+		}
+		if (this.sourcesConfig.isQobuz() && hasText(this.qobuzConfig.getAppId()) != hasText(this.qobuzConfig.getAppSecret())) {
+			issues.add("Qobuz appId and appSecret must be configured together.");
+		}
+		if (this.sourcesConfig.isPandora()
+			&& !hasText(this.pandoraConfig.getAuthToken())
+			&& !hasText(this.pandoraConfig.getCsrfToken())
+			&& !hasText(this.pandoraConfig.getRemoteTokenUrl())) {
+			issues.add("Pandora is enabled without pre-fetched tokens or a remoteTokenUrl; guest bootstrap must succeed at runtime.");
+		}
+		if ((this.sourcesConfig.isYoutube() || this.lyricsSourcesConfig.isYoutube()) && !hasNewYoutubeSource()) {
+			issues.add("YouTube search/lyrics is enabled but the new Youtube Source plugin is not available.");
+		}
+		return issues;
+	}
+
+	private void registerAudioSource(String name, Object component, boolean enabled, Runnable registration) {
+		if (!enabled) {
+			log.debug("Skipping {} audio source manager registration because the source is disabled.", name);
+			return;
+		}
+		if (component == null) {
+			log.warn("{} audio source manager was enabled but not initialized.", name);
+			return;
+		}
+		log.info("Registering {} audio source manager...", name);
+		registration.run();
+	}
+
+	private void registerSearchSource(String name, Object component, boolean enabled, Runnable registration) {
+		if (!enabled) {
+			log.debug("Skipping {} search manager registration because the source is disabled.", name);
+			return;
+		}
+		if (component == null) {
+			log.warn("{} search manager was enabled but not initialized.", name);
+			return;
+		}
+		log.info("Registering {} search manager...", name);
+		registration.run();
+	}
+
+	private void registerLyricsSource(String name, Object component, boolean enabled, Runnable registration) {
+		if (!enabled) {
+			log.debug("Skipping {} lyrics manager registration because the source is disabled.", name);
+			return;
+		}
+		if (component == null) {
+			log.warn("{} lyrics manager was enabled but not initialized.", name);
+			return;
+		}
+		log.info("Registering {} lyrics manager...", name);
+		registration.run();
+	}
+
+	private boolean hasText(String value) {
+		return value != null && !value.isBlank();
 	}
 }

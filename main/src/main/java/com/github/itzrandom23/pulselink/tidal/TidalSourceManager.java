@@ -46,6 +46,7 @@ public class TidalSourceManager extends MirroringAudioSourceManager implements H
 	public static final int PLAYLIST_MAX_PAGE_ITEMS = 750;
 	public static final int ALBUM_MAX_PAGE_ITEMS = 120;
 	public static final List<String> DEFAULT_HIFI_QUALITIES = List.of("HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW");
+	private static final String DEFAULT_TIDAL_TOKEN = "i4ZDjcyhed7Mu47q";
 
 	private static final String USER_AGENT = "TIDAL/3704 CFNetwork/1220.1 Darwin/20.3.0";
 	private static final Logger log = LoggerFactory.getLogger(TidalSourceManager.class);
@@ -72,10 +73,7 @@ public class TidalSourceManager extends MirroringAudioSourceManager implements H
 	public TidalSourceManager(String countryCode, Function<Void, AudioPlayerManager> audioPlayerManager, MirroringAudioTrackResolver mirroringAudioTrackResolver, String tidalToken, List<String> hifiApis, List<String> hifiQualities) {
 		super(audioPlayerManager, mirroringAudioTrackResolver);
 		this.countryCode = (countryCode == null || countryCode.isEmpty()) ? "US" : countryCode;
-		if (tidalToken == null || tidalToken.isEmpty()) {
-			throw new IllegalArgumentException("Tidal token must be provided");
-		}
-		this.tidalToken = tidalToken;
+		this.tidalToken = (tidalToken == null || tidalToken.isEmpty()) ? DEFAULT_TIDAL_TOKEN : tidalToken;
 		this.hifiApis = normalizeHifiApis(hifiApis);
 		this.hifiQualities = (hifiQualities == null || hifiQualities.isEmpty())
 			? DEFAULT_HIFI_QUALITIES

@@ -27,12 +27,12 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 	public AudioItem apply(MirroringAudioTrack mirroringAudioTrack) {
 		for (var provider : providers) {
 			if (provider.startsWith(SpotifySourceManager.SEARCH_PREFIX)) {
-				log.warn("Can not use spotify search as search provider!");
+				log.warn("Skipping provider \"{}\" because spotify search can not be used as a mirror provider.", provider);
 				continue;
 			}
 
 			if (provider.startsWith(AppleMusicSourceManager.SEARCH_PREFIX)) {
-				log.warn("Can not use apple music search as search provider!");
+				log.warn("Skipping provider \"{}\" because Apple Music search can not be used as a mirror provider.", provider);
 				continue;
 			}
 
@@ -40,12 +40,13 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 				if (mirroringAudioTrack.getInfo().isrc != null && !mirroringAudioTrack.getInfo().isrc.isEmpty()) {
 					provider = provider.replace(MirroringAudioSourceManager.ISRC_PATTERN, mirroringAudioTrack.getInfo().isrc.replace("-", ""));
 				} else {
-					log.debug("Ignoring identifier \"{}\" because this track does not have an ISRC!", provider);
+					log.debug("Skipping provider \"{}\" because this track does not have an ISRC.", provider);
 					continue;
 				}
 			}
 
 			provider = provider.replace(MirroringAudioSourceManager.QUERY_PATTERN, getTrackTitle(mirroringAudioTrack));
+			log.debug("Attempting mirror resolution with provider \"{}\" for track \"{}\".", provider, mirroringAudioTrack.getInfo().title);
 
 			AudioItem item;
 			try {
@@ -56,11 +57,14 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 			}
 			// If the track is an empty playlist, skip the provider
 			if (item instanceof AudioPlaylist && ((AudioPlaylist) item).getTracks().isEmpty() || item == AudioReference.NO_TRACK) {
+				log.debug("Provider \"{}\" did not produce a playable mirror result.", provider);
 				continue;
 			}
+			log.debug("Resolved mirror track via provider \"{}\".", provider);
 			return item;
 		}
 
+		log.debug("No mirror providers produced a playable result for track \"{}\".", mirroringAudioTrack.getInfo().title);
 		return AudioReference.NO_TRACK;
 	}
 

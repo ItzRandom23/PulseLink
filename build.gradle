@@ -9,38 +9,16 @@ allprojects {
         mavenLocal()
         mavenCentral()
         maven { url "https://jitpack.io" }
-        jcenter()
     }
-}
-
-def getGitVersion() {
-    def versionStr = new ByteArrayOutputStream()
-    def result = exec {
-        standardOutput versionStr
-        errorOutput versionStr
-        ignoreExitValue true
-        commandLine "git", "describe", "--exact-match", "--tags"
-    }
-    if (result.exitValue == 0) {
-        return [versionStr.toString().trim(), false]
-    }
-
-
-    versionStr = new ByteArrayOutputStream()
-    exec {
-        standardOutput versionStr
-        errorOutput versionStr
-        commandLine "git", "rev-parse", "--short", "HEAD"
-    }
-
-    return [versionStr.toString().trim(), true]
 }
 
 subprojects {
     apply plugin: "java"
     apply plugin: "maven-publish"
 
-    def versionStr = "1.5.4"
+    // PulseLink currently uses an explicit release version. Release docs and workflows
+    // should be updated together if tag- or commit-derived versioning is introduced later.
+    def versionStr = "1.5.5"
     def isSnapshot = false
     version versionStr
     println "Version: " + versionStr
@@ -54,6 +32,10 @@ subprojects {
 
     tasks.withType(Javadoc).configureEach {
         enabled = false
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
     }
 
     if (project.name != "plugin") {

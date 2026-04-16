@@ -2,9 +2,13 @@ package com.github.itzrandom23.pulselink.plugin.config;
 
 public class JioSaavnDecryptionConfig {
 
-	private String algorithm = "DES";
-	private String transformation = "DES/ECB/PKCS5Padding";
-	private String secretKey;
+	private static final String DEFAULT_ALGORITHM = "DES";
+	private static final String DEFAULT_TRANSFORMATION = "DES/ECB/PKCS5Padding";
+	private static final String DEFAULT_SECRET_KEY = "38346591";
+
+	private String algorithm = DEFAULT_ALGORITHM;
+	private String transformation = DEFAULT_TRANSFORMATION;
+	private String secretKey = DEFAULT_SECRET_KEY;
 
 	public JioSaavnDecryptionConfig(String algorithm, String transformation, String secretKey) {
 		this.algorithm = algorithm;

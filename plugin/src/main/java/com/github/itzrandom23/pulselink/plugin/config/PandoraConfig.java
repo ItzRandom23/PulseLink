@@ -6,10 +6,11 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "plugins.pulselink.pandora")
 @Component
 public class PandoraConfig {
+	private static final String DEFAULT_REMOTE_TOKEN_URL = "https://get.1lucas1apk.fun/pandora/gettoken";
 
 	private String csrfToken;
 	private String authToken;
-	private String remoteTokenUrl;
+	private String remoteTokenUrl = DEFAULT_REMOTE_TOKEN_URL;
 
 	public String getCsrfToken() {
 		return this.csrfToken;
@@ -32,6 +33,8 @@ public class PandoraConfig {
 	}
 
 	public void setRemoteTokenUrl(String remoteTokenUrl) {
-		this.remoteTokenUrl = remoteTokenUrl;
+		this.remoteTokenUrl = (remoteTokenUrl == null || remoteTokenUrl.isBlank())
+			? DEFAULT_REMOTE_TOKEN_URL
+			: remoteTokenUrl;
 	}
 }

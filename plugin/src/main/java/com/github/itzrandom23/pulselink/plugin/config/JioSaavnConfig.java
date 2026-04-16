@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 public class JioSaavnConfig {
 	@Nullable
 	private HttpProxyConfig proxy;
-	private JioSaavnDecryptionConfig decryption;
+	private JioSaavnDecryptionConfig decryption = new JioSaavnDecryptionConfig();
 
 	@Nullable
 	public HttpProxyConfig getProxy() {
@@ -33,9 +33,15 @@ public class JioSaavnConfig {
 	}
 
 	public @NotNull JioSaavnAudioSourceManager.JioSaavnConfig buildConfig() {
-		JioSaavnDecryptionConfig decryptionConfig = getDecryption();
-		if (decryptionConfig == null || decryptionConfig.getSecretKey() == null) {
-			throw new IllegalStateException("JioSaavn is enabled, but JioSaavn secret key is not provided");
+		JioSaavnDecryptionConfig decryptionConfig = getDecryption() != null ? getDecryption() : new JioSaavnDecryptionConfig();
+		if (decryptionConfig.getSecretKey() == null || decryptionConfig.getSecretKey().isBlank()) {
+			decryptionConfig.setSecretKey("38346591");
+		}
+		if (decryptionConfig.getAlgorithm() == null || decryptionConfig.getAlgorithm().isBlank()) {
+			decryptionConfig.setAlgorithm("DES");
+		}
+		if (decryptionConfig.getTransformation() == null || decryptionConfig.getTransformation().isBlank()) {
+			decryptionConfig.setTransformation("DES/ECB/PKCS5Padding");
 		}
 
 		JioSaavnAudioSourceManager.JioSaavnConfig sourceConfig = new JioSaavnAudioSourceManager.JioSaavnConfig(decryptionConfig.getSecretKey());
