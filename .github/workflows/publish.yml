@@ -1,4 +1,5 @@
 name: Publish
+
 permissions:
   contents: write
 on:
@@ -32,6 +33,9 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
 
       - name: Build
         run: ./gradlew build --no-daemon

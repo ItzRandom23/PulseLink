@@ -31,5 +31,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
       - name: Build and Test
         run: ./gradlew build test --no-daemon

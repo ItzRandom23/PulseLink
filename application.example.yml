@@ -1,10 +1,13 @@
 plugins:
   pulselink:
     providers:
-      - "ytsearch:\"%ISRC%\""
-      - "tdsearch:%QUERY%"
-      - "jssearch:%QUERY%"
-      - "ytsearch:%QUERY%"
+      - dzisrc:%ISRC%
+      - dzsearch:%QUERY%
+      - jssearch:%QUERY%
+      - gnsearch:%QUERY%
+      - admsearch:%QUERY%
+      - bcsearch:%QUERY%
+      - scsearch:%QUERY%
     sources:
       spotify: true
       amazonmusic: false
