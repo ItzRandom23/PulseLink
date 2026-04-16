@@ -34,22 +34,27 @@ Minimal example for Lavalink:
 plugins:
   pulselink:
     providers:
-      - "ytsearch:\"%ISRC%\""
-      - "ytsearch:%QUERY%"
+      - dzisrc:%ISRC%
+      - dzsearch:%QUERY%
+      - jssearch:%QUERY%
+      - gnsearch:%QUERY%
+      - admsearch:%QUERY%
+      - bcsearch:%QUERY%
+      - scsearch:%QUERY%
     sources:
       spotify: true
-      amazonmusic: false
-      applemusic: false
-      deezer: false
+      amazonmusic: true
+      applemusic: true
+      deezer: true
       yandexmusic: false
       vkmusic: false
-      tidal: false
-      qobuz: false
+      tidal: true
+      qobuz: true
       ytdlp: false
-      jiosaavn: false
-      audiomack: false
-      gaana: false
-      shazam: false
+      jiosaavn: true
+      audiomack: true
+      gaana: true
+      shazam: true
       flowerytts: false
       youtube: false
     lyrics-sources:
