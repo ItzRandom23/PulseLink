@@ -44,6 +44,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String RECOMMENDATIONS_PREFIX = "sprec:";
     public static final String PREVIEW_PREFIX = "spprev:";
     public static final long PREVIEW_LENGTH = 30000;
+    public static final String CLIENT_API_BASE = "https://spclient.wg.spotify.com/";
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
@@ -227,7 +228,6 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public AudioItem loadItem(String identifier, boolean preview) {
         try {
 
-            // --- Handle Spotify search ---
             if (identifier.startsWith(SEARCH_PREFIX)) {
                 var query = identifier.substring(SEARCH_PREFIX.length());
 
@@ -283,7 +283,6 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                     return resolveArtist(id);
                 }
 
-                // track / album / playlist
                 return resolveViaLeo(identifier, preview);
             }
 
@@ -329,8 +328,8 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                     trackId,
                     false,
                     "https://open.spotify.com/track/" + trackId,
-                    artwork, // <-- artworkUrl field
-                    isrc // <-- ISRC field
+                    artwork,
+                    isrc
             );
 
             tracks.add(new SpotifyAudioTrack(
@@ -380,7 +379,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
             var seed = matcher.group("seed");
 
             var request = new HttpGet(
-                    this.resolver + "/api/inspiredby-mix/v2/seed_to_playlist/spotify:"
+                    CLIENT_API_BASE + "inspiredby-mix/v2/seed_to_playlist/spotify:"
                             + seedType + ":" + seed + "?response-format=json");
 
             var json = PulseLinkTools.fetchResponseAsJson(
