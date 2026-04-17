@@ -4,124 +4,21 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ## Quick Start
 
-1. Build the plugin with `./gradlew :plugin:jar`.
-2. Copy the jar from `plugin/build/libs/` into your Lavalink `plugins` folder.
-3. Add the config shown below to your `application.yml`.
-4. Start Lavalink.
-
-## Documentation
-
-- Local Docker example: `docker/docker-compose.example.yml`
-- Local application example: `docker/application.local.example.yml`
-- Full sample config: `application.example.yml`
-
-## JitPack Install
-
-If you want Lavalink to pull the plugin automatically via JitPack, add this to `application.yml`:
+1. Add PulseLink to your Lavalink `application.yml` with JitPack:
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.5"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.6"
     repository: "https://jitpack.io"
     snapshot: false
 ```
 
+2. Use [`application.example.yml`](https://github.com/ItzRandom23/PulseLink/blob/main/application.example.yml) as the full configuration reference.
+3. Start Lavalink.
+
 ## Configuration
 
-Minimal example for Lavalink:
-
-```yaml
-plugins:
-  pulselink:
-    providers:
-      - dzisrc:%ISRC%
-      - dzsearch:%QUERY%
-      - jssearch:%QUERY%
-      - gnsearch:%QUERY%
-      - admsearch:%QUERY%
-      - bcsearch:%QUERY%
-      - scsearch:%QUERY%
-    sources:
-      spotify: true
-      amazonmusic: true
-      applemusic: true
-      deezer: true
-      yandexmusic: false
-      vkmusic: false
-      tidal: true
-      qobuz: true
-      ytdlp: false
-      jiosaavn: true
-      audiomack: true
-      gaana: true
-      shazam: true
-      flowerytts: false
-      youtube: false
-    lyrics-sources:
-      deezer: false
-      youtube: false
-      yandexmusic: false
-      vkmusic: false
-      lrcLib: false
-    spotify:
-      # Optional. Defaults to http://us2.leonodes.xyz:15561
-      apiUrl: "http://us2.leonodes.xyz:15561"
-      countryCode: "US"
-      playlistLoadLimit: 6
-      albumLoadLimit: 6
-      resolveArtistsInSearch: true
-      localFiles: false
-    amazonmusic:
-      # Optional. 0-10
-      searchLimit: 10
-    applemusic:
-      countryCode: "US"
-      # Optional. Apple Music playback can work without this token.
-      mediaAPIToken: "your apple music api token"
-    tidal:
-      countryCode: "US"
-      searchLimit: 6
-      token: "i4ZDjcyhed7Mu47q"
-      # Optional: direct streaming via hifi-api (third-party)
-      hifiApis:
-        - "https://hifi-two.spotisaver.net"
-      # Optional: order of qualities to try for direct streaming
-      hifiQualities: [ "HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW" ]
-    jiosaavn:
-      decryption:
-        algorithm: "DES"
-        secretKey: "38346591"
-        transformation: "DES/ECB/PKCS5Padding"
-    ytdlp:
-      path: "yt-dlp"
-      searchLimit: 10
-    audiomack:
-      searchLimit: 10
-      artistTrackLimit: 25
-    gaana:
-      # Optional. Defaults to https://gaanapi-wine.vercel.app/
-      apiUrl: "https://gaanapi-wine.vercel.app/"
-    pandora:
-      # Optional. If omitted, PulseLink will try guest bootstrap automatically.
-      csrfToken: ""
-      # Optional pre-fetched auth token.
-      authToken: ""
-      # Optional token provider returning { success, authToken, csrfToken }.
-      remoteTokenUrl: "https://get.1lucas1apk.fun/pandora/gettoken"
-```
-
-## Runtime Status
-
-PulseLink exposes a read-only status endpoint at `GET /v4/pulselink/status`.
-
-The response includes:
-
-- enabled sources
-- enabled lyrics sources
-- provider templates
-- readiness issues such as missing credentials or missing YouTube plugin support
-
-Secrets are not included in the response.
+See [`application.example.yml`](https://github.com/ItzRandom23/PulseLink/blob/main/application.example.yml) for the current full example configuration.
 
 ## Providers and Mirroring
 
@@ -160,6 +57,7 @@ Credentials and external requirements:
 
 Supported search prefixes:
 - Spotify: `spsearch:query`
+- Spotify mix recommendations: `sprec:mix:track:id`, `sprec:mix:album:id`, `sprec:mix:artist:id`
 - Amazon Music: `amzsearch:query`
 - Apple Music: `amsearch:query`
 - Deezer: `dzsearch:query`
@@ -175,31 +73,11 @@ Supported search prefixes:
 - yt-dlp: `ytsearch:query`
 - YouTube Music autocomplete/search: `ytmsearch:query`
 
-## Releases
-
-PulseLink ships jars through GitHub Releases and GitHub Actions build artifacts. The GitHub Packages page is intended for the container image only, not Maven jars.
-
-Versioning is currently manual in `build.gradle`.
-
-Artifacts:
-- Plugin jar: `plugin/build/libs/pulselink-plugin-<version>.jar`
-- Main jar: `main/build/libs/pulselink-<version>.jar`
-- Container image: `ghcr.io/itzrandom23/pulselink:<tag>`
-
-## Local Docker
-
-Example local deployment files are included:
-- `docker/docker-compose.example.yml`
-- `docker/application.local.example.yml`
-
-They provide a minimal Lavalink + PulseLink setup using the published container image.
-
 ## Troubleshooting
 
 Common checks:
 - If mirrored tracks do not resolve, verify your `providers` order and keep a `%QUERY%` fallback after `%ISRC%`.
 - If YouTube search or lyrics is enabled, the new YouTube source plugin must also be available.
-- If a source appears enabled but unusable, check `GET /v4/pulselink/status` for readiness issues.
 - The runtime PATCH endpoint only updates mutable fields present in the payload; null fields are ignored.
 - Local Gradle builds require Java 17.
 

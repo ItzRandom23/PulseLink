@@ -32,16 +32,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 @RestController
@@ -49,15 +42,8 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 
 	private static final Logger log = LoggerFactory.getLogger(PulseLinkPlugin.class);
 
-	private final PulseLinkConfig pluginConfig;
 	private final SourcesConfig sourcesConfig;
 	private final LyricsSourcesConfig lyricsSourcesConfig;
-	private final AppleMusicConfig appleMusicConfig;
-	private final DeezerConfig deezerConfig;
-	private final YandexMusicConfig yandexMusicConfig;
-	private final VkMusicConfig vkMusicConfig;
-	private final QobuzConfig qobuzConfig;
-	private final PandoraConfig pandoraConfig;
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
 	private AmazonMusicSourceManager amazonMusic;
@@ -99,15 +85,8 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		ProxyConfigurationService proxyConfigurationService
 	) {
 		log.info("Loading PulseLink plugin...");
-		this.pluginConfig = pluginConfig;
 		this.sourcesConfig = sourcesConfig;
 		this.lyricsSourcesConfig = lyricsSourcesConfig;
-		this.appleMusicConfig = appleMusicConfig;
-		this.deezerConfig = deezerConfig;
-		this.yandexMusicConfig = yandexMusicConfig;
-		this.vkMusicConfig = vkMusicConfig;
-		this.qobuzConfig = qobuzConfig;
-		this.pandoraConfig = pandoraConfig;
 
 		if (sourcesConfig.isSpotify()) {
 			this.spotify = new SpotifySourceManager(
@@ -336,18 +315,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		return manager;
 	}
 
-	@GetMapping("/v4/pulselink/status")
-	public PulseLinkStatus getStatus() {
-		List<String> readinessIssues = getReadinessIssues();
-		return new PulseLinkStatus(
-			readinessIssues.isEmpty(),
-			getEnabledSources(),
-			getEnabledLyricsSources(),
-			getProviderTemplates(),
-			readinessIssues
-		);
-	}
-
 	@PatchMapping("/v4/pulselink/config")
 	public void updateConfig(@RequestBody Config config) {
 		try {
@@ -440,80 +407,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		}
 	}
 
-	Map<String, Boolean> getEnabledSources() {
-		Map<String, Boolean> enabledSources = new LinkedHashMap<>();
-		enabledSources.put("spotify", this.sourcesConfig.isSpotify());
-		enabledSources.put("amazonMusic", this.sourcesConfig.isAmazonMusic());
-		enabledSources.put("appleMusic", this.sourcesConfig.isAppleMusic());
-		enabledSources.put("deezer", this.sourcesConfig.isDeezer());
-		enabledSources.put("yandexMusic", this.sourcesConfig.isYandexMusic());
-		enabledSources.put("floweryTTS", this.sourcesConfig.isFloweryTTS());
-		enabledSources.put("youtube", this.sourcesConfig.isYoutube());
-		enabledSources.put("vkMusic", this.sourcesConfig.isVkMusic());
-		enabledSources.put("qobuz", this.sourcesConfig.isQobuz());
-		enabledSources.put("tidal", this.sourcesConfig.isTidal());
-		enabledSources.put("ytdlp", this.sourcesConfig.isYtdlp());
-		enabledSources.put("jiosaavn", this.sourcesConfig.isJiosaavn());
-		enabledSources.put("audiomack", this.sourcesConfig.isAudiomack());
-		enabledSources.put("gaana", this.sourcesConfig.isGaana());
-		enabledSources.put("shazam", this.sourcesConfig.isShazam());
-		enabledSources.put("pandora", this.sourcesConfig.isPandora());
-		return enabledSources;
-	}
-
-	Map<String, Boolean> getEnabledLyricsSources() {
-		Map<String, Boolean> enabledLyricsSources = new LinkedHashMap<>();
-		enabledLyricsSources.put("deezer", this.lyricsSourcesConfig.isDeezer());
-		enabledLyricsSources.put("youtube", this.lyricsSourcesConfig.isYoutube());
-		enabledLyricsSources.put("yandexMusic", this.lyricsSourcesConfig.isYandexMusic());
-		enabledLyricsSources.put("vkMusic", this.lyricsSourcesConfig.isVkMusic());
-		enabledLyricsSources.put("lrcLib", this.lyricsSourcesConfig.isLrcLib());
-		return enabledLyricsSources;
-	}
-
-	List<String> getProviderTemplates() {
-		String[] providers = this.pluginConfig.getProviders();
-		if (providers == null || providers.length == 0) {
-			return List.of();
-		}
-		return Arrays.asList(providers);
-	}
-
-	List<String> getReadinessIssues() {
-		List<String> issues = new ArrayList<>();
-		if (this.sourcesConfig.isAppleMusic() && !hasText(this.appleMusicConfig.getMediaAPIToken())) {
-			issues.add("Apple Music is enabled but mediaAPIToken is missing.");
-		}
-		if ((this.sourcesConfig.isDeezer() || this.lyricsSourcesConfig.isDeezer()) && !hasText(this.deezerConfig.getArl())) {
-			issues.add("Deezer is enabled but arl is missing.");
-		}
-		if ((this.sourcesConfig.isDeezer() || this.lyricsSourcesConfig.isDeezer()) && !hasText(this.deezerConfig.getMasterDecryptionKey())) {
-			issues.add("Deezer is enabled but masterDecryptionKey is missing.");
-		}
-		if ((this.sourcesConfig.isYandexMusic() || this.lyricsSourcesConfig.isYandexMusic()) && !hasText(this.yandexMusicConfig.getAccessToken())) {
-			issues.add("Yandex Music is enabled but accessToken is missing.");
-		}
-		if ((this.sourcesConfig.isVkMusic() || this.lyricsSourcesConfig.isVkMusic()) && !hasText(this.vkMusicConfig.getUserToken())) {
-			issues.add("VK Music is enabled but userToken is missing.");
-		}
-		if (this.sourcesConfig.isQobuz() && !hasText(this.qobuzConfig.getUserOauthToken()) && !hasText(this.qobuzConfig.getAppId())) {
-			issues.add("Qobuz is enabled but no userOauthToken or app credentials are configured.");
-		}
-		if (this.sourcesConfig.isQobuz() && hasText(this.qobuzConfig.getAppId()) != hasText(this.qobuzConfig.getAppSecret())) {
-			issues.add("Qobuz appId and appSecret must be configured together.");
-		}
-		if (this.sourcesConfig.isPandora()
-			&& !hasText(this.pandoraConfig.getAuthToken())
-			&& !hasText(this.pandoraConfig.getCsrfToken())
-			&& !hasText(this.pandoraConfig.getRemoteTokenUrl())) {
-			issues.add("Pandora is enabled without pre-fetched tokens or a remoteTokenUrl; guest bootstrap must succeed at runtime.");
-		}
-		if ((this.sourcesConfig.isYoutube() || this.lyricsSourcesConfig.isYoutube()) && !hasNewYoutubeSource()) {
-			issues.add("YouTube search/lyrics is enabled but the new Youtube Source plugin is not available.");
-		}
-		return issues;
-	}
-
 	private void registerAudioSource(String name, Object component, boolean enabled, Runnable registration) {
 		if (!enabled) {
 			log.debug("Skipping {} audio source manager registration because the source is disabled.", name);
@@ -551,9 +444,5 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		}
 		log.info("Registering {} lyrics manager...", name);
 		registration.run();
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 }

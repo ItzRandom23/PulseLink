@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SpotifySourceManager extends MirroringAudioSourceManager
@@ -38,7 +39,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final Pattern URL_PATTERN = Pattern.compile(
             "(https?://)(www\\.)?open\\.spotify\\.com/((?<region>[a-zA-Z-]+)/)?(?<type>track|album|playlist|artist)/(?<identifier>[a-zA-Z0-9-_]+)");
     public static final Pattern RADIO_MIX_QUERY_PATTERN = Pattern
-            .compile("mix:(?<seedType>album|artist|track|isrc):(?<seed>[a-zA-Z0-9-_]+)");
+            .compile("mix:(?<seedType>album|artist|track):(?<seed>[a-zA-Z0-9-_]+)");
     public static final String SEARCH_PREFIX = "spsearch:";
     public static final String RECOMMENDATIONS_PREFIX = "sprec:";
     public static final String PREVIEW_PREFIX = "spprev:";
@@ -287,8 +288,8 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
             }
 
             if (identifier.startsWith(RECOMMENDATIONS_PREFIX)) {
-                return resolveRecommendations(
-                        identifier.substring(RECOMMENDATIONS_PREFIX.length()));
+                return getRecommendations(
+                        identifier.substring(RECOMMENDATIONS_PREFIX.length()), preview);
             }
 
             return null;
@@ -372,9 +373,35 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         return parsePlaylist(json, "Spotify");
     }
 
-    private AudioItem resolveRecommendations(String identifier) throws IOException {
+    public AudioItem getRecommendations(String query, boolean preview) throws IOException {
+        Matcher matcher = RADIO_MIX_QUERY_PATTERN.matcher(query);
+        if (matcher.find()) {
+            var seedType = matcher.group("seedType");
+            var seed = matcher.group("seed");
 
-        var encoded = URLEncoder.encode(identifier, StandardCharsets.UTF_8);
+            var request = new HttpGet(
+                    this.resolver + "/api/inspiredby-mix/v2/seed_to_playlist/spotify:"
+                            + seedType + ":" + seed + "?response-format=json");
+
+            var json = PulseLinkTools.fetchResponseAsJson(
+                    this.httpInterfaceManager.getInterface(),
+                    request);
+
+            var mediaItems = json.get("mediaItems");
+            if (mediaItems != null && mediaItems.isList() && !mediaItems.values().isEmpty()) {
+                var uri = mediaItems.index(0).get("uri").safeText();
+                if (uri != null && !uri.isBlank()) {
+                    var parts = uri.split(":");
+                    if (parts.length >= 3) {
+                        return resolveViaLeo("https://open.spotify.com/playlist/" + parts[2], preview);
+                    }
+                }
+            }
+
+            return AudioReference.NO_TRACK;
+        }
+
+        var encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
 
         var request = new HttpGet(
                 this.resolver + "/api/recommendations?url=" + encoded);
