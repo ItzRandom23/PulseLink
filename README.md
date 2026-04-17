@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.7"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.8"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -32,7 +32,7 @@ Playback modes:
 
 | Source | Access | Notes |
 |--------|--------|-------|
-| Spotify | Mirror | `apiUrl` is optional. |
+| Spotify | Mirror | `apiUrl` and `anonymousTokenUrl` are optional. |
 | Amazon Music | Mirror | No credentials required. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
@@ -51,6 +51,7 @@ Playback modes:
 
 Credentials and external requirements:
 - No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, FloweryTTS
+- Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://us2.leonodes.xyz:15540/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
 - Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics

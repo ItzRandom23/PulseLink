@@ -45,6 +45,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String PREVIEW_PREFIX = "spprev:";
     public static final long PREVIEW_LENGTH = 30000;
     public static final String CLIENT_API_BASE = "https://spclient.wg.spotify.com/";
+    public static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://us2.leonodes.xyz:15540/api/token";
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
@@ -56,6 +57,9 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     private final HttpInterfaceManager httpInterfaceManager = HttpClientTools.createDefaultThreadLocalManager();
     private final String countryCode;
     private String resolver = DEFAULT_RESOLVER;
+    private String anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;
+    private volatile String anonymousAccessToken;
+    private volatile long anonymousAccessTokenExpirationMs;
     private int playlistPageLimit = 6;
     private int albumPageLimit = 6;
     private boolean localFiles;
@@ -129,6 +133,19 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         }
 
         this.resolver = apiUrl;
+    }
+
+    public void setAnonymousTokenUrl(String anonymousTokenUrl) {
+        if (anonymousTokenUrl == null || anonymousTokenUrl.isBlank()) {
+            this.anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;
+            this.anonymousAccessToken = null;
+            this.anonymousAccessTokenExpirationMs = 0;
+            return;
+        }
+
+        this.anonymousTokenUrl = anonymousTokenUrl;
+        this.anonymousAccessToken = null;
+        this.anonymousAccessTokenExpirationMs = 0;
     }
 
     @NotNull
@@ -378,9 +395,11 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
             var seedType = matcher.group("seedType");
             var seed = matcher.group("seed");
 
+            var accessToken = this.getAnonymousAccessToken();
             var request = new HttpGet(
                     CLIENT_API_BASE + "inspiredby-mix/v2/seed_to_playlist/spotify:"
                             + seedType + ":" + seed + "?response-format=json");
+            request.setHeader("Authorization", "Bearer " + accessToken);
 
             var json = PulseLinkTools.fetchResponseAsJson(
                     this.httpInterfaceManager.getInterface(),
@@ -410,6 +429,105 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 request);
 
         return parsePlaylist(json, "Recommendations");
+    }
+
+    private String getAnonymousAccessToken() throws IOException {
+        var now = System.currentTimeMillis();
+        if (this.anonymousAccessToken != null && now < this.anonymousAccessTokenExpirationMs - 5000) {
+            return this.anonymousAccessToken;
+        }
+
+        synchronized (this) {
+            now = System.currentTimeMillis();
+            if (this.anonymousAccessToken != null && now < this.anonymousAccessTokenExpirationMs - 5000) {
+                return this.anonymousAccessToken;
+            }
+
+            var tokenRequest = new HttpGet(this.anonymousTokenUrl);
+            var tokenJson = PulseLinkTools.fetchResponseAsJson(
+                    this.httpInterfaceManager.getInterface(),
+                    tokenRequest);
+
+            if (tokenJson == null) {
+                throw new IllegalStateException("Spotify anonymous token endpoint returned no data.");
+            }
+
+            var accessToken = findTextValue(tokenJson, "accessToken");
+            var expirationTimestampMs = findLongValue(tokenJson, "accessTokenExpirationTimestampMs");
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new IllegalStateException("Spotify anonymous token endpoint did not return accessToken.");
+            }
+
+            this.anonymousAccessToken = accessToken;
+            this.anonymousAccessTokenExpirationMs = expirationTimestampMs > 0 ? expirationTimestampMs : now + 300000;
+            return this.anonymousAccessToken;
+        }
+    }
+
+    private String findTextValue(JsonBrowser json, String key) {
+        if (json == null || json.isNull()) {
+            return null;
+        }
+
+        var directValue = json.get(key);
+        if (directValue != null && !directValue.isNull()) {
+            var text = directValue.safeText();
+            if (text != null && !text.isBlank()) {
+                return text;
+            }
+        }
+
+        if (json.isList()) {
+            for (var value : json.values()) {
+                var text = findTextValue(value, key);
+                if (text != null && !text.isBlank()) {
+                    return text;
+                }
+            }
+            return null;
+        }
+
+        for (var value : json.values()) {
+            var text = findTextValue(value, key);
+            if (text != null && !text.isBlank()) {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    private long findLongValue(JsonBrowser json, String key) {
+        if (json == null || json.isNull()) {
+            return 0;
+        }
+
+        var directValue = json.get(key);
+        if (directValue != null && !directValue.isNull()) {
+            var value = directValue.asLong(0);
+            if (value > 0) {
+                return value;
+            }
+        }
+
+        if (json.isList()) {
+            for (var value : json.values()) {
+                var nestedValue = findLongValue(value, key);
+                if (nestedValue > 0) {
+                    return nestedValue;
+                }
+            }
+            return 0;
+        }
+
+        for (var value : json.values()) {
+            var nestedValue = findLongValue(value, key);
+            if (nestedValue > 0) {
+                return nestedValue;
+            }
+        }
+
+        return 0;
     }
 
     private AudioItem resolveArtist(String id) throws IOException {
