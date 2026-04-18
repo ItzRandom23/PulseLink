@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -411,7 +412,11 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 if (uri != null && !uri.isBlank()) {
                     var parts = uri.split(":");
                     if (parts.length >= 3) {
-                        return resolveViaLeo("https://open.spotify.com/playlist/" + parts[2], preview);
+                        var item = resolveViaLeo("https://open.spotify.com/playlist/" + parts[2], preview);
+                        if ("track".equals(seedType)) {
+                            return filterMixPlaylist(item, resolveSeedTrack(seed));
+                        }
+                        return item;
                     }
                 }
             }
@@ -429,6 +434,79 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 request);
 
         return parsePlaylist(json, "Recommendations");
+    }
+
+    private AudioTrack resolveSeedTrack(String seed) throws IOException {
+        var item = resolveViaLeo("https://open.spotify.com/track/" + seed, false);
+        return item instanceof AudioTrack track ? track : null;
+    }
+
+    private AudioItem filterMixPlaylist(AudioItem item, AudioTrack seedTrack) {
+        if (item instanceof AudioTrack track) {
+            if (shouldSkipMixTrack(track, seedTrack, new LinkedHashSet<>())) {
+                return AudioReference.NO_TRACK;
+            }
+            return track;
+        }
+
+        if (!(item instanceof AudioPlaylist playlist)) {
+            return item;
+        }
+
+        var seenTitles = new LinkedHashSet<String>();
+        var filteredTracks = playlist.getTracks().stream()
+                .filter(track -> !shouldSkipMixTrack(track, seedTrack, seenTitles))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (filteredTracks.isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+
+        if (filteredTracks.size() == 1) {
+            return filteredTracks.get(0);
+        }
+
+        return new BasicAudioPlaylist(
+                playlist.getName(),
+                filteredTracks,
+                null,
+                playlist.isSearchResult());
+    }
+
+    private boolean shouldSkipMixTrack(AudioTrack track, AudioTrack seedTrack, Set<String> seenTitles) {
+        if (seedTrack != null) {
+            if (seedTrack.getIdentifier().equals(track.getIdentifier())) {
+                return true;
+            }
+
+            var seedTitle = normalizeMixTitle(seedTrack.getInfo().title);
+            var trackTitle = normalizeMixTitle(track.getInfo().title);
+            if (!seedTitle.isBlank() && seedTitle.equals(trackTitle)) {
+                return true;
+            }
+        }
+
+        var normalizedTitle = normalizeMixTitle(track.getInfo().title);
+        if (!normalizedTitle.isBlank() && !seenTitles.add(normalizedTitle)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private String normalizeMixTitle(String title) {
+        if (title == null) {
+            return "";
+        }
+
+        var normalized = title.toLowerCase()
+                .replaceAll("\\(.*?\\)", " ")
+                .replaceAll("\\[.*?\\]", " ")
+                .replaceAll("\\s+-\\s+.*$", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        return normalized;
     }
 
     private String getAnonymousAccessToken() throws IOException {

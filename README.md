@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.8"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.9"
     repository: "https://jitpack.io"
     snapshot: false
 ```
