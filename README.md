@@ -6,6 +6,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 1. Add PulseLink to your Lavalink `application.yml` with JitPack:
 
+v1.6.0 will be available on 22/23 May 2026
 ```yaml
 plugins:
   - dependency: "com.github.ItzRandom23:PulseLink:v1.5.9"
