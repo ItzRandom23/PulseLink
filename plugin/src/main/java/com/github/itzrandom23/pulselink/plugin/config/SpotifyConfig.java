@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpotifyConfig {
 
-    private static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://us2.leonodes.xyz:15540/api/token";
+    private static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://140.245.242.153:8082/api/token";
 
     private String apiUrl;
     private String anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;

@@ -32,10 +32,10 @@ plugins:
       vkmusic: false
       lrcLib: false
     spotify:
-      # Optional. Defaults to http://us2.leonodes.xyz:15561
-      apiUrl: "http://us2.leonodes.xyz:15561"
-      # Optional. Defaults to http://us2.leonodes.xyz:15540/api/token ( For sprec:mix )
-      anonymousTokenUrl: "http://us2.leonodes.xyz:15540/api/token"
+      # Optional. Defaults to http://140.245.242.153:8081
+      apiUrl: "http://140.245.242.153:8081"
+      # Optional. Defaults to http://140.245.242.153:8082/api/token ( For sprec:mix )
+      anonymousTokenUrl: "http://140.245.242.153:8082/api/token"
       countryCode: "US"
       playlistLoadLimit: 6
       albumLoadLimit: 6

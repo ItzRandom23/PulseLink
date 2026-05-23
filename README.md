@@ -6,10 +6,9 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 1. Add PulseLink to your Lavalink `application.yml` with JitPack:
 
-v1.6.0 will be available on 22/23 May 2026
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.9"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.10"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -52,7 +51,7 @@ Playback modes:
 
 Credentials and external requirements:
 - No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, FloweryTTS
-- Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://us2.leonodes.xyz:15540/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
+- Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://140.245.242.153:8082/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
 - Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics

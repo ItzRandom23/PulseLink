@@ -46,11 +46,11 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String PREVIEW_PREFIX = "spprev:";
     public static final long PREVIEW_LENGTH = 30000;
     public static final String CLIENT_API_BASE = "https://spclient.wg.spotify.com/";
-    public static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://us2.leonodes.xyz:15540/api/token";
+    public static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://140.245.242.153:8082/api/token";
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
-    private static final String DEFAULT_RESOLVER = "http://us2.leonodes.xyz:15561";
+    private static final String DEFAULT_RESOLVER = "http://140.245.242.153:8081";
     public static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.ALBUM,
             AudioSearchResult.Type.ARTIST, AudioSearchResult.Type.PLAYLIST, AudioSearchResult.Type.TRACK);
     private static final Logger log = LoggerFactory.getLogger(SpotifySourceManager.class);
