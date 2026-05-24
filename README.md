@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.5.11"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.0"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -43,6 +43,7 @@ Playback modes:
 | JioSaavn | Direct | Uses built-in decryption defaults; `decryption` can be overridden in config. |
 | Audiomack | Direct | No credentials required. |
 | Gaana | Direct | No credentials required. |
+| SoundCloud | Direct / Mirror fallback | No credentials required. Supports tracks, sets/playlists, user pages, `m.soundcloud.com`, `on.soundcloud.com`, and `snd.sc` links. SoundCloud Go/preview-only tracks keep SoundCloud metadata but borrow mirror duration/playback when direct audio is unavailable. |
 | Shazam | Mirror | No credentials required. |
 | Pandora | Mirror | Uses the built-in remote token provider; `remoteTokenUrl`, `csrfToken`, or `authToken` can override it. |
 | yt-dlp | Direct | Requires `yt-dlp` installed. |
@@ -50,7 +51,7 @@ Playback modes:
 | YouTube | Search / Lyrics | Requires the new YouTube source plugin. |
 
 Credentials and external requirements:
-- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, FloweryTTS
+- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, SoundCloud, FloweryTTS
 - Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://140.245.242.153:8082/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
@@ -69,10 +70,14 @@ Supported search prefixes:
 - JioSaavn: `jssearch:query`
 - Audiomack: `admsearch:query`
 - Gaana: `gnsearch:query`
+- SoundCloud: `scsearch:query`
 - Shazam: `szsearch:query`
 - Pandora: `pdsearch:query`
 - yt-dlp: `ytsearch:query`
 - YouTube Music autocomplete/search: `ytmsearch:query`
+
+SoundCloud fallback notes:
+- If SoundCloud only exposes a 30-second preview, PulseLink resolves a mirror during load and uses the mirror track duration for the queued SoundCloud track.
 
 ## Troubleshooting
 
@@ -80,7 +85,7 @@ Common checks:
 - If mirrored tracks do not resolve, verify your `providers` order and keep a `%QUERY%` fallback after `%ISRC%`.
 - If YouTube search or lyrics is enabled, the new YouTube source plugin must also be available.
 - The runtime PATCH endpoint only updates mutable fields present in the payload; null fields are ignored.
-- Local Gradle builds require Java 17.
+- Local Gradle builds and JitPack builds require Java 17.
 
 ## Contributing
 

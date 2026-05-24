@@ -36,6 +36,11 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 				continue;
 			}
 
+			if ("soundcloud".equals(mirroringAudioTrack.getSourceManager().getSourceName()) && provider.startsWith("scsearch:")) {
+				log.warn("Skipping provider \"{}\" because SoundCloud search can not be used as a mirror provider for SoundCloud tracks.", provider);
+				continue;
+			}
+
 			if (provider.contains(MirroringAudioSourceManager.ISRC_PATTERN)) {
 				if (mirroringAudioTrack.getInfo().isrc != null && !mirroringAudioTrack.getInfo().isrc.isEmpty()) {
 					provider = provider.replace(MirroringAudioSourceManager.ISRC_PATTERN, mirroringAudioTrack.getInfo().isrc.replace("-", ""));

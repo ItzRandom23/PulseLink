@@ -81,6 +81,9 @@ plugins:
     gaana:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
+    soundcloud:
+      searchLimit: 10
+      userTrackLimit: 25
     pandora:
       csrfToken: ""
       authToken: ""

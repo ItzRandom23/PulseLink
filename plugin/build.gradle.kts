@@ -1,5 +1,5 @@
 plugins {
-	id("dev.arbjerg.lavalink.gradle-plugin") version "1.0.15"
+	id("dev.arbjerg.lavalink.gradle-plugin") version "1.1.2"
 }
 
 base {
@@ -12,8 +12,6 @@ lavalinkPlugin {
 	serverVersion = "4.0.5"
 	configurePublishing = false
 }
-
-
 
 dependencies {
 	implementation(project(":main"))
@@ -38,6 +36,8 @@ dependencies {
 
 tasks {
 	jar {
+		dependsOn(":main:jar", ":protocol:jar", ":protocol:jvmJar")
+		from(zipTree(project(":protocol").layout.buildDirectory.file("libs/pulselink-protocol-jvm-${project.version}.jar")))
 		exclude("dev/schlaubi/lyrics/LyricsClient*")
 		exclude("dev/schlaubi/lyrics/Lyrics_jvmKt.class")
 	}
