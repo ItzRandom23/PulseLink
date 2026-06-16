@@ -22,8 +22,8 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.BasicAudioPlaylist;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jetbrains.annotations.NotNull;
@@ -205,7 +205,8 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 	}
 
 	private AudioItem resolveUrl(String soundCloudUrl) throws IOException {
-		JsonBrowser data = getJson(BASE_URL + "/resolve?url=" + encode(soundCloudUrl) + "&client_id=" + encode(getClientId()));
+		String resolvedSoundCloudUrl = expandShortUrl(soundCloudUrl);
+		JsonBrowser data = getJson(BASE_URL + "/resolve?url=" + encode(resolvedSoundCloudUrl) + "&client_id=" + encode(getClientId()));
 		if (data == null || data.isNull()) {
 			return AudioReference.NO_TRACK;
 		}
@@ -224,14 +225,14 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 				orDefault(getText(data, "title"), "SoundCloud Playlist"),
 				tracks,
 				ExtendedAudioPlaylist.Type.PLAYLIST,
-				orDefault(getText(data, "permalink_url"), soundCloudUrl),
+				orDefault(getText(data, "permalink_url"), resolvedSoundCloudUrl),
 				artwork(getText(data, "artwork_url")),
 				getText(data.get("user"), "username"),
 				(int) data.get("track_count").asLong(tracks.size())
 			);
 		}
 		if ("user".equalsIgnoreCase(kind)) {
-			return resolveUser(data, soundCloudUrl);
+			return resolveUser(data, resolvedSoundCloudUrl);
 		}
 
 		return AudioReference.NO_TRACK;
@@ -468,6 +469,41 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		return PulseLinkTools.fetchResponseAsJson(httpInterface, createRequest(url));
 	}
 
+	private String expandShortUrl(String url) throws IOException {
+		if (!isShortSoundCloudUrl(url)) {
+			return url;
+		}
+
+		String current = url;
+		try (HttpInterface httpInterface = this.httpInterfaceManager.getInterface()) {
+			for (int redirectCount = 0; redirectCount < 8; redirectCount++) {
+				HttpGet request = createRequest(current);
+				request.setConfig(RequestConfig.copy(request.getConfig())
+					.setRedirectsEnabled(false)
+					.build());
+
+				try (CloseableHttpResponse response = httpInterface.execute(request)) {
+					int status = response.getStatusLine().getStatusCode();
+					if (!isRedirect(status)) {
+						return current;
+					}
+
+					var location = response.getFirstHeader("Location");
+					if (location == null || location.getValue() == null || location.getValue().isBlank()) {
+						return current;
+					}
+
+					current = resolveUrl(current, location.getValue().trim());
+					if (isCanonicalSoundCloudUrl(current)) {
+						return current;
+					}
+				}
+			}
+		}
+
+		return current;
+	}
+
 	private String fetchText(String url) throws IOException {
 		try (HttpInterface httpInterface = this.httpInterfaceManager.getInterface()) {
 			return fetchText(httpInterface, url);
@@ -512,6 +548,14 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		}
 	}
 
+	private boolean isRedirect(int status) {
+		return status == HttpStatus.SC_MOVED_PERMANENTLY
+			|| status == HttpStatus.SC_MOVED_TEMPORARILY
+			|| status == HttpStatus.SC_SEE_OTHER
+			|| status == HttpStatus.SC_TEMPORARY_REDIRECT
+			|| status == 308;
+	}
+
 	private boolean isSoundCloudUrl(String identifier) {
 		if (identifier == null || !identifier.startsWith("http")) {
 			return false;
@@ -529,6 +573,25 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 				|| host.equals("snd.sc");
 		} catch (IllegalArgumentException ignored) {
 			return false;
+		}
+	}
+
+	private boolean isShortSoundCloudUrl(String identifier) {
+		String host = getHost(identifier);
+		return host != null && (host.equals("on.soundcloud.com") || host.equals("snd.sc"));
+	}
+
+	private boolean isCanonicalSoundCloudUrl(String identifier) {
+		String host = getHost(identifier);
+		return host != null && (host.equals("soundcloud.com") || host.equals("www.soundcloud.com") || host.equals("m.soundcloud.com"));
+	}
+
+	private String getHost(String identifier) {
+		try {
+			String host = URI.create(identifier).getHost();
+			return host != null ? host.toLowerCase(Locale.ROOT) : null;
+		} catch (IllegalArgumentException ignored) {
+			return null;
 		}
 	}
 
