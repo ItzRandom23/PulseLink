@@ -8,6 +8,7 @@ import com.github.topi314.lavasearch.AudioSearchManager;
 import com.github.topi314.lavasearch.result.AudioSearchResult;
 import com.github.topi314.lavasearch.result.BasicAudioSearchResult;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpConfigurable;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
@@ -29,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,8 +47,10 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	private static final Logger log = LoggerFactory.getLogger(ShazamAudioSourceManager.class);
 
 	private static final String SEARCH_PREFIX = "szsearch:";
+	private static final String ALT_SEARCH_PREFIX = "shsearch:";
 	private static final String SEARCH_API_BASE = "https://www.shazam.com/services/amapi/v1/catalog/US/search?types=songs&term=%s&limit=%d";
-	private static final Pattern URL_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/song/\\d+(?:/[^/?#]+)?", Pattern.CASE_INSENSITIVE);
+	private static final Pattern URL_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:song|track)/(\\d+)(?:/[^/?#]+)?/?(?:[?#].*)?", Pattern.CASE_INSENSITIVE);
+	private static final Pattern SLUG_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:song|track)/\\d+/([^/?#]+)/?(?:[?#].*)?", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ISRC_PATTERN = Pattern.compile("(?:\"isrc\"|\\\\\"isrc\\\\\")\\s*:\\s*\\\\?\"([A-Z]{2}[A-Z0-9]{3}\\d{7})\\\\?\"");
 	private static final Pattern DURATION_PATTERN = Pattern.compile("(?:\"duration\"|\\\\\"duration\\\\\")\\s*:\\s*\\\\?\"(PT[^\"]+)\\\\?\"");
 	private static final Pattern OG_TITLE_PATTERN = Pattern.compile("^(.+?) - (.+?)(?::|$)");
@@ -83,18 +88,18 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		if (!types.contains(AudioSearchResult.Type.TRACK)) {
 			return null;
 		}
-		if (!query.startsWith(SEARCH_PREFIX)) {
+		if (!isSearchQuery(query)) {
 			return null;
 		}
 
-		String actualQuery = query.substring(SEARCH_PREFIX.length());
+		String actualQuery = stripSearchPrefix(query);
 		try {
 			AudioItem item = getSearch(actualQuery);
 			if (item instanceof BasicAudioPlaylist playlist) {
 				return new BasicAudioSearchResult(playlist.getTracks(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
 			}
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to search Shazam", e);
+		} catch (FriendlyException | IOException e) {
+			log.warn("Failed to search Shazam for query {}", actualQuery, e);
 		}
 
 		return new BasicAudioSearchResult(new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
@@ -104,8 +109,8 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	public AudioItem loadItem(AudioPlayerManager manager, AudioReference reference) {
 		try {
 			String identifier = reference.identifier;
-			if (identifier.startsWith(SEARCH_PREFIX)) {
-				return getSearch(identifier.substring(SEARCH_PREFIX.length()));
+			if (isSearchQuery(identifier)) {
+				return getSearch(stripSearchPrefix(identifier));
 			}
 			if (!URL_PATTERN.matcher(identifier).matches()) {
 				return null;
@@ -113,8 +118,9 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 
 			AudioTrack track = resolveTrack(identifier);
 			return track != null ? track : AudioReference.NO_TRACK;
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to load Shazam item", e);
+		} catch (FriendlyException | IOException e) {
+			log.warn("Failed to load Shazam item {}", reference.identifier, e);
+			return AudioReference.NO_TRACK;
 		}
 	}
 
@@ -156,19 +162,29 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	private AudioTrack resolveTrack(String url) throws IOException {
 		String html = fetchText(url);
 		if (html == null || html.isEmpty()) {
-			return null;
+			return resolveTrackFromSlug(url);
 		}
 
 		Document document = Jsoup.parse(html, url);
-		String title = textOrNull(document.selectFirst("meta[property=og:title]"), "content");
+		String title = textByClassPart(document, html, "NewTrackPageHeader_trackTitle__");
+		String artist = textByClassPart(document, html, "TrackPageArtistLink_artistNameText__");
 		String artworkUrl = textOrNull(document.selectFirst("meta[property=og:image]"), "content");
+		if (artworkUrl == null || artworkUrl.isBlank()) {
+			artworkUrl = extractArtworkFromImgAlt(document);
+		}
 
-		String artist = null;
-		if (title != null) {
-			Matcher ogMatch = OG_TITLE_PATTERN.matcher(title);
+		String ogTitle = textOrNull(document.selectFirst("meta[property=og:title]"), "content");
+		if (ogTitle != null) {
+			Matcher ogMatch = OG_TITLE_PATTERN.matcher(ogTitle);
 			if (ogMatch.find()) {
-				title = ogMatch.group(1).trim();
-				artist = ogMatch.group(2).trim();
+				if (title == null || title.isBlank()) {
+					title = ogMatch.group(1).trim();
+				}
+				if (artist == null || artist.isBlank()) {
+					artist = ogMatch.group(2).trim();
+				}
+			} else if (title == null || title.isBlank()) {
+				title = ogTitle;
 			}
 		}
 
@@ -183,14 +199,16 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		}
 
 		if (title == null || title.isBlank()) {
-			title = "Unknown";
+			return resolveTrackFromSlug(url);
 		}
 		if (artist == null || artist.isBlank()) {
 			artist = "Unknown";
 		}
 
-		String identifier = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-		identifier = identifier.substring(identifier.lastIndexOf('/') + 1);
+		String identifier = extractIdentifier(url);
+		if (identifier == null) {
+			return null;
+		}
 		String isrc = firstMatch(ISRC_PATTERN, html);
 		long duration = parseIsoDuration(firstMatch(DURATION_PATTERN, html));
 
@@ -206,6 +224,37 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		);
 
 		return new ShazamAudioTrack(info, null, null, null, null, this);
+	}
+
+	private AudioTrack resolveTrackFromSlug(String url) throws IOException {
+		String query = extractSlugQuery(url);
+		if (query == null || query.isBlank()) {
+			return null;
+		}
+		String identifier = extractIdentifier(url);
+
+		try {
+			AudioItem item = getSearch(query);
+			if (item instanceof BasicAudioPlaylist playlist && !playlist.getTracks().isEmpty()) {
+				if (identifier != null) {
+					for (AudioTrack track : playlist.getTracks()) {
+						if (identifier.equals(track.getInfo().identifier)) {
+							log.debug("Resolved Shazam URL {} through slug search fallback '{}' using matching id {}.", url, query, identifier);
+							return track;
+						}
+					}
+				}
+				log.debug("Resolved Shazam URL {} through slug search fallback '{}'.", url, query);
+				return playlist.getTracks().get(0);
+			}
+			if (item instanceof AudioTrack track) {
+				return track;
+			}
+		} catch (FriendlyException e) {
+			log.warn("Shazam slug search fallback failed for query {}", query, e);
+		}
+
+		return null;
 	}
 
 	private AudioTrack buildTrack(JsonBrowser item) {
@@ -244,17 +293,139 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 
 	private JsonBrowser getJson(String url) throws IOException {
 		HttpGet request = new HttpGet(url);
-		request.setHeader("Accept", "application/json");
-		request.setHeader("User-Agent", "Mozilla/5.0");
+		setBrowserHeaders(request, "application/json");
 		return PulseLinkTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
 	}
 
 	private String fetchText(String url) throws IOException {
+		return fetchText(url, 0);
+	}
+
+	private String fetchText(String url, int redirectCount) throws IOException {
+		if (redirectCount > 5) {
+			log.warn("Too many redirects while loading Shazam URL {}", url);
+			return null;
+		}
+
 		HttpGet request = new HttpGet(url);
-		request.setHeader("User-Agent", "Mozilla/5.0");
+		setBrowserHeaders(request, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 		try (var response = this.httpInterfaceManager.getInterface().execute(request)) {
+			int statusCode = response.getStatusLine().getStatusCode();
+			if (statusCode >= 300 && statusCode < 400) {
+				var location = response.getFirstHeader("Location");
+				if (location == null || location.getValue() == null || location.getValue().isBlank()) {
+					log.warn("Shazam returned redirect without a Location header for {}", url);
+					return null;
+				}
+				String redirectUrl = URI.create(url).resolve(location.getValue()).toString();
+				return fetchText(redirectUrl, redirectCount + 1);
+			}
+			if (statusCode >= 400) {
+				log.warn("Shazam returned HTTP {} while loading {}", statusCode, url);
+				return null;
+			}
+			if (response.getEntity() == null) {
+				return null;
+			}
 			return IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
 		}
+	}
+
+	private void setBrowserHeaders(HttpGet request, String accept) {
+		request.setHeader("Accept", accept);
+		request.setHeader("Accept-Language", "en-US,en;q=0.9");
+		request.setHeader("Cache-Control", "max-age=0");
+		request.setHeader("Cookie", "geoip_country=IN; _bszm=1");
+		request.setHeader("Sec-CH-UA", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Brave\";v=\"150\"");
+		request.setHeader("Sec-CH-UA-Mobile", "?0");
+		request.setHeader("Sec-CH-UA-Platform", "\"Windows\"");
+		request.setHeader("Referer", "https://www.shazam.com/");
+		request.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36");
+		if (accept.startsWith("text/html")) {
+			request.setHeader("Sec-Fetch-Dest", "document");
+			request.setHeader("Sec-Fetch-Mode", "navigate");
+			request.setHeader("Sec-Fetch-Site", "same-origin");
+			request.setHeader("Sec-Fetch-User", "?1");
+			request.setHeader("Upgrade-Insecure-Requests", "1");
+		}
+	}
+
+	private boolean isSearchQuery(String query) {
+		return query.startsWith(SEARCH_PREFIX) || query.startsWith(ALT_SEARCH_PREFIX);
+	}
+
+	private String stripSearchPrefix(String query) {
+		if (query.startsWith(SEARCH_PREFIX)) {
+			return query.substring(SEARCH_PREFIX.length());
+		}
+		return query.substring(ALT_SEARCH_PREFIX.length());
+	}
+
+	private String extractIdentifier(String url) {
+		Matcher matcher = URL_PATTERN.matcher(url);
+		return matcher.matches() ? matcher.group(1) : null;
+	}
+
+	private String extractSlugQuery(String url) {
+		Matcher matcher = SLUG_PATTERN.matcher(url);
+		if (!matcher.matches()) {
+			return null;
+		}
+		return URLDecoder.decode(matcher.group(1), StandardCharsets.UTF_8).replace('-', ' ').replace('_', ' ').trim();
+	}
+
+	private String textByClassPart(Document document, String html, String classPart) {
+		String selectorText = textOrNull(document.selectFirst("[class*=\"" + classPart + "\"]"), null);
+		if (selectorText != null && !selectorText.isBlank()) {
+			return selectorText.trim();
+		}
+		return extractTextAfterClass(html, classPart);
+	}
+
+	private String extractTextAfterClass(String html, String classPart) {
+		int from = 0;
+		while (true) {
+			int classIndex = html.indexOf("class=\"", from);
+			if (classIndex < 0) {
+				return null;
+			}
+
+			int quoteIndex = html.indexOf('"', classIndex + 7);
+			if (quoteIndex < 0) {
+				return null;
+			}
+
+			String classValue = html.substring(classIndex + 7, quoteIndex);
+			if (classValue.contains(classPart)) {
+				int start = html.indexOf('>', quoteIndex);
+				if (start < 0) {
+					return null;
+				}
+				int end = html.indexOf('<', start + 1);
+				if (end < 0) {
+					return null;
+				}
+				String text = Jsoup.parse(html.substring(start + 1, end)).text().trim();
+				return text.isBlank() ? null : text;
+			}
+			from = quoteIndex + 1;
+		}
+	}
+
+	private String extractArtworkFromImgAlt(Document document) {
+		var image = document.selectFirst("img[alt=\"album cover\"], img[alt=\"song thumbnail\"]");
+		if (image == null) {
+			return null;
+		}
+
+		String srcset = image.attr("srcset");
+		if (srcset != null && !srcset.isBlank()) {
+			int separator = srcset.indexOf(' ');
+			return separator < 0 ? srcset : srcset.substring(0, separator);
+		}
+
+		String src = image.attr("src");
+		return src == null || src.isBlank() ? null : src;
 	}
 
 	private String textOrNull(org.jsoup.nodes.Element element, String attribute) {

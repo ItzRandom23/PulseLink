@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.1"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.3"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -36,7 +36,7 @@ Playback modes:
 | Amazon Music | Mirror | No credentials required. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
-| Qobuz | Mirror | No manual credentials required; optional app/user credentials can be supplied. |
+| Qobuz | Mirror | `userOauthToken` is required. |
 | Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
 | Yandex Music | Direct | Requires `accessToken`. |
 | VK Music | Direct | Requires `userToken`. |

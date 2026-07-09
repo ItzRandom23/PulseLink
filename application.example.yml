@@ -95,6 +95,8 @@ plugins:
       #   algorithm: DES
       #   secretKey: "38346591"
       #   transformation: DES/ECB/PKCS5Padding
+    qobuz:
+      userOauthToken: "" # Required 
 server:
   port: 2333
   address: 0.0.0.0
