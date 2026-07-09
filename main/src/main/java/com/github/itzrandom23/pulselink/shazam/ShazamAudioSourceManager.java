@@ -160,7 +160,8 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	}
 
 	private AudioTrack resolveTrack(String url) throws IOException {
-		String html = fetchText(url);
+		url = url.replace("/track/", "/song/");
+        String html = fetchText(url); 
 		if (html == null || html.isEmpty()) {
 			return resolveTrackFromSlug(url);
 		}
