@@ -35,7 +35,9 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -49,8 +51,10 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	private static final String SEARCH_PREFIX = "szsearch:";
 	private static final String ALT_SEARCH_PREFIX = "shsearch:";
 	private static final String SEARCH_API_BASE = "https://www.shazam.com/services/amapi/v1/catalog/US/search?types=songs&term=%s&limit=%d";
-	private static final Pattern URL_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:song|track)/(\\d+)(?:/[^/?#]+)?/?(?:[?#].*)?", Pattern.CASE_INSENSITIVE);
-	private static final Pattern SLUG_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:song|track)/\\d+/([^/?#]+)/?(?:[?#].*)?", Pattern.CASE_INSENSITIVE);
+	private static final String CATALOG_API_BASE = "https://www.shazam.com/services/amapi/v1/catalog/%s";
+	private static final String LEGACY_TRACK_API_BASE = "https://www.shazam.com/discovery/v5/en-US/%s/web/-/track/%s?shazamapiversion=v3&video=v3";
+	private static final String CHART_LOCATIONS_API = "https://www.shazam.com/services/charts/locations";
+	private static final Pattern SLUG_PATTERN = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:[a-z]{2}-[a-z]{2}/)?(?:song|track)/\\d+/([^/?#]+)/?(?:[?#].*)?", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ISRC_PATTERN = Pattern.compile("(?:\"isrc\"|\\\\\"isrc\\\\\")\\s*:\\s*\\\\?\"([A-Z]{2}[A-Z0-9]{3}\\d{7})\\\\?\"");
 	private static final Pattern DURATION_PATTERN = Pattern.compile("(?:\"duration\"|\\\\\"duration\\\\\")\\s*:\\s*\\\\?\"(PT[^\"]+)\\\\?\"");
 	private static final Pattern OG_TITLE_PATTERN = Pattern.compile("^(.+?) - (.+?)(?::|$)");
@@ -112,12 +116,20 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 			if (isSearchQuery(identifier)) {
 				return getSearch(stripSearchPrefix(identifier));
 			}
-			if (!URL_PATTERN.matcher(identifier).matches()) {
+			ParsedUrl parsedUrl = parseUrl(identifier);
+			if (parsedUrl == null) {
 				return null;
 			}
 
-			AudioTrack track = resolveTrack(identifier);
-			return track != null ? track : AudioReference.NO_TRACK;
+			return switch (parsedUrl.type) {
+				case TRACK -> {
+					AudioTrack track = resolveTrack(parsedUrl);
+					yield track != null ? track : AudioReference.NO_TRACK;
+				}
+				case ALBUM -> loadAlbum(parsedUrl);
+				case ARTIST -> loadArtist(parsedUrl);
+				case CHART -> loadChart(parsedUrl);
+			};
 		} catch (FriendlyException | IOException e) {
 			log.warn("Failed to load Shazam item {}", reference.identifier, e);
 			return AudioReference.NO_TRACK;
@@ -159,13 +171,59 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		return new BasicAudioPlaylist("Shazam Search: " + query, tracks, null, true);
 	}
 
-	private AudioTrack resolveTrack(String url) throws IOException {
-		url = url.replace("/track/", "/song/");
-        String html = fetchText(url); 
-		if (html == null || html.isEmpty()) {
-			return resolveTrackFromSlug(url);
+	private AudioTrack resolveTrack(ParsedUrl parsedUrl) throws IOException {
+		if (parsedUrl.legacyTrackUrl) {
+			AudioTrack legacyTrack = loadLegacyTrack(parsedUrl);
+			if (legacyTrack != null) {
+				return legacyTrack;
+			}
+		} else {
+			AudioTrack catalogTrack = loadCatalogTrack(parsedUrl.storefront, parsedUrl.id);
+			if (catalogTrack != null) {
+				return catalogTrack;
+			}
 		}
 
+		return resolveTrackFromSlug(parsedUrl.url);
+	}
+
+	private AudioTrack loadLegacyTrack(ParsedUrl parsedUrl) throws IOException {
+		JsonBrowser json = getLegacyTrackJson(parsedUrl.storefront, parsedUrl.id);
+		JsonBrowser track = json != null ? json.get("track") : null;
+		if (track == null || track.isNull()) {
+			return null;
+		}
+
+		String title = track.get("title").safeText();
+		String artist = track.get("subtitle").safeText();
+		if (title.isBlank() || artist.isBlank()) {
+			return null;
+		}
+
+		JsonBrowser images = track.get("images");
+		String artworkUrl = images.get("coverarthq").safeText();
+		if (artworkUrl.isBlank()) {
+			artworkUrl = images.get("coverart").safeText();
+		}
+		String isrc = track.get("isrc").safeText();
+		long duration = normalizeDuration(track.get("duration").asLong(0L));
+
+		AudioTrackInfo info = new AudioTrackInfo(
+			title,
+			artist,
+			duration,
+			parsedUrl.id,
+			false,
+			parsedUrl.url,
+			artworkUrl.isBlank() ? null : artworkUrl,
+			isrc.isBlank() ? null : isrc
+		);
+
+		return new ShazamAudioTrack(info, null, null, null, null, this);
+	}
+
+	private AudioTrack resolveTrackFromHtml(ParsedUrl parsedUrl, String html) throws IOException {
+		String url = parsedUrl.url;
 		Document document = Jsoup.parse(html, url);
 		String title = textByClassPart(document, html, "NewTrackPageHeader_trackTitle__");
 		String artist = textByClassPart(document, html, "TrackPageArtistLink_artistNameText__");
@@ -206,10 +264,6 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 			artist = "Unknown";
 		}
 
-		String identifier = extractIdentifier(url);
-		if (identifier == null) {
-			return null;
-		}
 		String isrc = firstMatch(ISRC_PATTERN, html);
 		long duration = parseIsoDuration(firstMatch(DURATION_PATTERN, html));
 
@@ -217,7 +271,7 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 			title,
 			artist,
 			duration,
-			identifier,
+			parsedUrl.id,
 			false,
 			url,
 			artworkUrl,
@@ -225,6 +279,97 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		);
 
 		return new ShazamAudioTrack(info, null, null, null, null, this);
+	}
+
+	private AudioItem loadAlbum(ParsedUrl parsedUrl) throws IOException {
+		JsonBrowser json = getJson(catalogUrl(parsedUrl.storefront, "/albums/" + parsedUrl.id + "/tracks?limit=300"));
+		return buildPlaylist(json, "Shazam Album", parsedUrl.url);
+	}
+
+	private AudioItem loadArtist(ParsedUrl parsedUrl) throws IOException {
+		JsonBrowser json = getJson(catalogUrl(parsedUrl.storefront, "/artists/" + parsedUrl.id));
+		return buildPlaylist(json, "Shazam Artist", parsedUrl.url);
+	}
+
+	private AudioItem loadChart(ParsedUrl parsedUrl) throws IOException {
+		JsonBrowser locations = getJson(CHART_LOCATIONS_API);
+		String playlistId = findChartPlaylistId(locations, parsedUrl.chartLocation);
+		if (playlistId == null) {
+			return AudioReference.NO_TRACK;
+		}
+
+		JsonBrowser json = getJson(catalogUrl(parsedUrl.storefront, "/playlists/" + playlistId + "/tracks?limit=200&offset=0&relate[songs]=artists,music-videos"));
+		return buildPlaylist(json, "Shazam " + parsedUrl.chartLocation + " Chart", parsedUrl.url);
+	}
+
+	private AudioTrack loadCatalogTrack(String storefront, String id) throws IOException {
+		JsonBrowser json = getJson(catalogUrl(storefront, "/songs/" + id));
+		for (JsonBrowser song : findSongNodes(json)) {
+			if (id.equals(song.get("id").text())) {
+				return buildTrack(song);
+			}
+		}
+		return null;
+	}
+
+	private AudioItem buildPlaylist(JsonBrowser json, String fallbackName, String originalUrl) {
+		Map<String, AudioTrack> tracks = new LinkedHashMap<>();
+		for (JsonBrowser song : findSongNodes(json)) {
+			AudioTrack track = buildTrack(song);
+			if (track != null) {
+				tracks.putIfAbsent(track.getInfo().identifier, track);
+			}
+		}
+		if (tracks.isEmpty()) {
+			return AudioReference.NO_TRACK;
+		}
+
+		String name = playlistName(json, fallbackName);
+		return new BasicAudioPlaylist(name, new ArrayList<>(tracks.values()), null, false);
+	}
+
+	private List<JsonBrowser> findSongNodes(JsonBrowser node) {
+		List<JsonBrowser> songs = new ArrayList<>();
+		collectSongNodes(node, songs);
+		return songs;
+	}
+
+	private void collectSongNodes(JsonBrowser node, List<JsonBrowser> songs) {
+		if (node == null || node.isNull()) {
+			return;
+		}
+		if (node.isMap() && "songs".equalsIgnoreCase(node.get("type").safeText()) && !node.get("id").isNull()) {
+			songs.add(node);
+			return;
+		}
+		if (node.isMap() || node.isList()) {
+			for (JsonBrowser value : node.values()) {
+				collectSongNodes(value, songs);
+			}
+		}
+	}
+
+	private String findChartPlaylistId(JsonBrowser locations, String location) {
+		for (JsonBrowser country : locations.get("countries").values()) {
+			if (location.equalsIgnoreCase(country.get("urlName").safeText())) {
+				return country.get("listid").safeText();
+			}
+		}
+		return null;
+	}
+
+	private String playlistName(JsonBrowser json, String fallbackName) {
+		for (JsonBrowser item : json.get("data").values()) {
+			String name = item.get("attributes").get("name").safeText();
+			if (!name.isBlank()) {
+				return name;
+			}
+		}
+		return fallbackName;
+	}
+
+	private String catalogUrl(String storefront, String path) {
+		return String.format(CATALOG_API_BASE, storefront) + path;
 	}
 
 	private AudioTrack resolveTrackFromSlug(String url) throws IOException {
@@ -298,6 +443,16 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		return PulseLinkTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
 	}
 
+	private JsonBrowser getLegacyTrackJson(String storefront, String id) throws IOException {
+		HttpGet request = new HttpGet(String.format(LEGACY_TRACK_API_BASE, storefront, id));
+		request.setHeader("Accept", "application/json, text/plain, */*");
+		request.setHeader("Accept-Language", "en-US,en;q=0.9");
+		request.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36");
+		request.setHeader("X-Shazam-Platform", "IPHONE");
+		request.setHeader("X-Shazam-AppVersion", "14.1.0");
+		return PulseLinkTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+	}
+
 	private String fetchText(String url) throws IOException {
 		return fetchText(url, 0);
 	}
@@ -322,7 +477,7 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 				return fetchText(redirectUrl, redirectCount + 1);
 			}
 			if (statusCode >= 400) {
-				log.warn("Shazam returned HTTP {} while loading {}", statusCode, url);
+				log.debug("Shazam returned HTTP {} while loading {}; trying the catalog fallback.", statusCode, url);
 				return null;
 			}
 			if (response.getEntity() == null) {
@@ -363,8 +518,63 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	}
 
 	private String extractIdentifier(String url) {
-		Matcher matcher = URL_PATTERN.matcher(url);
-		return matcher.matches() ? matcher.group(1) : null;
+		ParsedUrl parsedUrl = parseUrl(url);
+		return parsedUrl != null && parsedUrl.type == UrlType.TRACK ? parsedUrl.id : null;
+	}
+
+	private ParsedUrl parseUrl(String url) {
+		try {
+			URI uri = URI.create(url);
+			if (uri.getHost() == null || !uri.getHost().equalsIgnoreCase("shazam.com") && !uri.getHost().equalsIgnoreCase("www.shazam.com")) {
+				return null;
+			}
+
+			String[] rawParts = uri.getPath().split("/");
+			List<String> parts = new ArrayList<>();
+			for (String part : rawParts) {
+				if (!part.isBlank()) {
+					parts.add(part);
+				}
+			}
+			if (parts.isEmpty()) {
+				return null;
+			}
+
+			int index = 0;
+			String storefront = "US";
+			if (parts.get(0).matches("(?i)[a-z]{2}-[a-z]{2}")) {
+				storefront = parts.get(0).substring(3).toUpperCase();
+				index++;
+			}
+			if (index >= parts.size()) {
+				return null;
+			}
+
+			String type = parts.get(index).toLowerCase();
+			return switch (type) {
+				case "song" -> parsedItem(url, storefront, UrlType.TRACK, parts, index + 1, false);
+				case "track" -> parsedItem(url, storefront, UrlType.TRACK, parts, index + 1, true);
+				case "album" -> parsedItem(url, storefront, UrlType.ALBUM, parts, index + 1);
+				case "artist" -> parsedItem(url, storefront, UrlType.ARTIST, parts, index + 1);
+				case "charts" -> index + 2 < parts.size() ? new ParsedUrl(url, storefront, UrlType.CHART, null, parts.get(index + 2)) : null;
+				default -> null;
+			};
+		} catch (IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	private ParsedUrl parsedItem(String url, String storefront, UrlType type, List<String> parts, int start) {
+		return parsedItem(url, storefront, type, parts, start, false);
+	}
+
+	private ParsedUrl parsedItem(String url, String storefront, UrlType type, List<String> parts, int start, boolean legacyTrackUrl) {
+		for (int index = start; index < parts.size(); index++) {
+			if (parts.get(index).matches("\\d+")) {
+				return new ParsedUrl(url, storefront, type, parts.get(index), null, legacyTrackUrl);
+			}
+		}
+		return null;
 	}
 
 	private String extractSlugQuery(String url) {
@@ -466,5 +676,38 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 			seconds += Double.parseDouble(matcher.group(3));
 		}
 		return Math.round(seconds * 1000D);
+	}
+
+	private long normalizeDuration(long duration) {
+		return duration > 0L && duration < 10000L ? duration * 1000L : duration;
+	}
+
+	private enum UrlType {
+		TRACK,
+		ALBUM,
+		ARTIST,
+		CHART
+	}
+
+	private static class ParsedUrl {
+		private final String url;
+		private final String storefront;
+		private final UrlType type;
+		private final String id;
+		private final String chartLocation;
+		private final boolean legacyTrackUrl;
+
+		private ParsedUrl(String url, String storefront, UrlType type, String id, String chartLocation) {
+			this(url, storefront, type, id, chartLocation, false);
+		}
+
+		private ParsedUrl(String url, String storefront, UrlType type, String id, String chartLocation, boolean legacyTrackUrl) {
+			this.url = url;
+			this.storefront = storefront;
+			this.type = type;
+			this.id = id;
+			this.chartLocation = chartLocation;
+			this.legacyTrackUrl = legacyTrackUrl;
+		}
 	}
 }
