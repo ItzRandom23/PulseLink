@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.8"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.9"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -32,6 +32,8 @@ plugins:
 ```
 
 LRCLIB searches by the loaded track's title and artist and returns plain lyrics, synchronized lyrics, or both when available.
+
+The Lavalink lyrics endpoint is provided by the [LavaLyrics plugin](https://github.com/topi314/LavaLyrics); install it alongside PulseLink when you need `GET /v4/sessions/{sessionId}/players/{guildId}/track/lyrics`.
 
 ## Providers and Mirroring
 

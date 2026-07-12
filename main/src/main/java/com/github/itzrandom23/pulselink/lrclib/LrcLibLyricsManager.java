@@ -9,6 +9,7 @@ import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.utils.URIBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,12 +28,17 @@ public class LrcLibLyricsManager implements AudioLyricsManager {
 
 	public LrcLibLyricsManager() {
 		this.httpInterfaceManager = HttpClientTools.createCookielessThreadLocalManager();
+		this.httpInterfaceManager.configureRequests(config -> RequestConfig.copy(config)
+			.setConnectTimeout(5000)
+			.setConnectionRequestTimeout(5000)
+			.setSocketTimeout(10000)
+			.build());
 	}
 
 	@NotNull
 	@Override
 	public String getSourceName() {
-		return "";
+		return "lrclib";
 	}
 
 	@Override
@@ -40,7 +46,9 @@ public class LrcLibLyricsManager implements AudioLyricsManager {
 		try {
 			return this.searchLyrics(null, audioTrack.getInfo().title, audioTrack.getInfo().author, null);
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			// Lyrics are optional; a remote LRCLIB timeout must not fail Lavalink's
+			// lyrics endpoint with HTTP 500.
+			return null;
 		}
 	}
 
