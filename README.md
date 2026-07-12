@@ -36,7 +36,7 @@ Playback modes:
 | Amazon Music | Mirror | No credentials required. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
-| Qobuz | Mirror | No manual credentials required; optional app/user credentials can be supplied. |
+| Qobuz | Mirror | `userOauthToken` is required. |
 | Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
 | Yandex Music | Direct | Requires `accessToken`. |
 | VK Music | Direct | Requires `userToken`. |
@@ -51,10 +51,10 @@ Playback modes:
 | YouTube | Search / Lyrics | Requires the new YouTube source plugin. |
 
 Credentials and external requirements:
-- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Gaana, SoundCloud, FloweryTTS
+- No credentials required: Spotify, Amazon Music, Shazam, Pandora, Gaana, SoundCloud, FloweryTTS
 - Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://140.245.242.153:8082/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
-- Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
-- Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
+- Optional overrides: Apple Music `mediaAPIToken`, Tidal `token` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
+- Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`, Qobuz `userOauthToken`
 - Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics
 
 Supported search prefixes:
