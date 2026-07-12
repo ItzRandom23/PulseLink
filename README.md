@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.6"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.7"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -36,24 +36,24 @@ Playback modes:
 | Amazon Music | Mirror | No credentials required. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
-| Qobuz | Mirror | `userOauthToken` is required. |
+| Qobuz | Mirror | No manual credentials required; optional app/user credentials can be supplied. |
 | Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
 | Yandex Music | Direct | Requires `accessToken`. |
 | VK Music | Direct | Requires `userToken`. |
 | JioSaavn | Direct | Uses built-in decryption defaults; `decryption` can be overridden in config. |
-| Audiomack | Direct | No credentials required. |
+| Audiomack | Direct | Uses built-in web credentials; `consumerKey` and `consumerSecret` can be overridden. |
 | Gaana | Direct | No credentials required. |
 | SoundCloud | Direct / Mirror fallback | No credentials required. Supports tracks, sets/playlists, user pages, `m.soundcloud.com`, `on.soundcloud.com`, and `snd.sc` links. SoundCloud Go/preview-only tracks keep SoundCloud metadata but borrow mirror duration/playback when direct audio is unavailable. |
-| Shazam | Mirror | No credentials required. |
+| Shazam | Converter | Resolves Shazam search and page links to their Apple Music URLs; Apple Music handles metadata and playback. |
 | Pandora | Mirror | Uses the built-in remote token provider; `remoteTokenUrl`, `csrfToken`, or `authToken` can override it. |
 | yt-dlp | Direct | Requires `yt-dlp` installed. |
 | FloweryTTS | Direct | No credentials required. |
 | YouTube | Search / Lyrics | Requires the new YouTube source plugin. |
 
 Credentials and external requirements:
-- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Audiomack, Gaana, SoundCloud, FloweryTTS
+- No credentials required: Spotify, Amazon Music, Qobuz, Shazam, Pandora, Gaana, SoundCloud, FloweryTTS
 - Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://140.245.242.153:8082/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
-- Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
+- Optional overrides: Apple Music `mediaAPIToken`, Tidal `token`, Qobuz `userOauthToken` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
 - Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics
 

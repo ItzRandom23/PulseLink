@@ -45,8 +45,8 @@ public class AudiomackAudioSourceManager extends ExtendedAudioSourceManager impl
 	private static final Logger log = LoggerFactory.getLogger(AudiomackAudioSourceManager.class);
 
 	private static final String API_BASE = "https://api.audiomack.com/v1";
-	private static final String CONSUMER_KEY = "audiomack-web";
-	private static final String CONSUMER_SECRET = "bd8a07e9f23fbe9d808646b730f89b8e";
+	private static final String DEFAULT_CONSUMER_KEY = "audiomack-web";
+	private static final String DEFAULT_CONSUMER_SECRET = "bd8a07e9f23fbe9d808646b730f89b8e";
 
 	private static final String SEARCH_PREFIX = "admsearch:";
 	private static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.TRACK);
@@ -375,7 +375,7 @@ public class AudiomackAudioSourceManager extends ExtendedAudioSourceManager impl
 
 	private JsonBrowser makeSignedRequest(HttpInterface httpInterface, String method, String url, Map<String, String> params) throws IOException {
 		Map<String, String> oauthParams = new HashMap<>(params);
-		oauthParams.put("oauth_consumer_key", CONSUMER_KEY);
+		oauthParams.put("oauth_consumer_key", config.getConsumerKey());
 		oauthParams.put("oauth_nonce", randomHex(16));
 		oauthParams.put("oauth_signature_method", "HMAC-SHA1");
 		oauthParams.put("oauth_timestamp", Long.toString(Instant.now().getEpochSecond()));
@@ -392,7 +392,7 @@ public class AudiomackAudioSourceManager extends ExtendedAudioSourceManager impl
 	private String generateSignature(String method, String url, Map<String, String> params) {
 		String paramString = buildParamString(params);
 		String base = method.toUpperCase(Locale.ROOT) + "&" + strictEncode(url) + "&" + strictEncode(paramString);
-		String key = strictEncode(CONSUMER_SECRET) + "&";
+		String key = strictEncode(config.getConsumerSecret()) + "&";
 
 		try {
 			Mac mac = Mac.getInstance("HmacSHA1");
@@ -510,6 +510,8 @@ public class AudiomackAudioSourceManager extends ExtendedAudioSourceManager impl
 
 		private int searchLimit = DEFAULT_SEARCH_LIMIT;
 		private int artistTrackLimit = DEFAULT_ARTIST_TRACK_LIMIT;
+		private String consumerKey = DEFAULT_CONSUMER_KEY;
+		private String consumerSecret = DEFAULT_CONSUMER_SECRET;
 
 		public int getSearchLimit() {
 			return searchLimit;
@@ -531,6 +533,22 @@ public class AudiomackAudioSourceManager extends ExtendedAudioSourceManager impl
 				throw new IllegalArgumentException("artistTrackLimit must be greater than 0");
 			}
 			this.artistTrackLimit = artistTrackLimit;
+		}
+
+		public String getConsumerKey() {
+			return consumerKey;
+		}
+
+		public void setConsumerKey(String consumerKey) {
+			if (consumerKey != null && !consumerKey.isBlank()) this.consumerKey = consumerKey;
+		}
+
+		public String getConsumerSecret() {
+			return consumerSecret;
+		}
+
+		public void setConsumerSecret(String consumerSecret) {
+			if (consumerSecret != null && !consumerSecret.isBlank()) this.consumerSecret = consumerSecret;
 		}
 	}
 }

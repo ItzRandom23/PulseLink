@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 public class AudiomackConfig {
 	private int searchLimit = 10;
 	private int artistTrackLimit = 25;
+	private String consumerKey;
+	private String consumerSecret;
 
 	public int getSearchLimit() {
 		return searchLimit;
@@ -26,10 +28,28 @@ public class AudiomackConfig {
 		this.artistTrackLimit = artistTrackLimit;
 	}
 
+	public String getConsumerKey() {
+		return consumerKey;
+	}
+
+	public void setConsumerKey(String consumerKey) {
+		this.consumerKey = consumerKey;
+	}
+
+	public String getConsumerSecret() {
+		return consumerSecret;
+	}
+
+	public void setConsumerSecret(String consumerSecret) {
+		this.consumerSecret = consumerSecret;
+	}
+
 	public AudiomackAudioSourceManager.AudiomackConfig buildConfig() {
 		var config = new AudiomackAudioSourceManager.AudiomackConfig();
 		config.setSearchLimit(this.searchLimit);
 		config.setArtistTrackLimit(this.artistTrackLimit);
+		config.setConsumerKey(this.consumerKey);
+		config.setConsumerSecret(this.consumerSecret);
 		return config;
 	}
 }

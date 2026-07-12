@@ -3,6 +3,7 @@ package com.github.itzrandom23.pulselink.shazam;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.config.RequestConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +25,7 @@ final class ShazamHtmlClient {
 		this.httpInterface = httpInterface;
 	}
 
-	String get(ShazamUrl page) throws IOException {
+	Page get(ShazamUrl page) throws IOException {
 		IOException lastFailure = null;
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
@@ -47,12 +48,14 @@ final class ShazamHtmlClient {
 		throw failure("a temporary network error", page.route.name().toLowerCase(), null);
 	}
 
-	private String get(String url, String pageType, int redirectCount) throws IOException {
+	private Page get(String url, String pageType, int redirectCount) throws IOException {
 		if (redirectCount > MAX_REDIRECTS) {
 			throw failure("too many redirects", pageType, null);
 		}
 
 		HttpGet request = new HttpGet(url);
+		// Keep redirects visible so the caller can use Shazam's canonical /song ID.
+		request.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build());
 		setBrowserHeaders(request);
 		log.debug("GET Shazam {} metadata: {}", pageType, url);
 		try (var response = httpInterface.execute(request)) {
@@ -83,7 +86,7 @@ final class ShazamHtmlClient {
 				throw failure("an empty response", pageType, null);
 			}
 			log.debug("Shazam {} metadata loaded with HTTP 200: {}", pageType, url);
-			return html;
+			return new Page(url, html);
 		}
 	}
 
@@ -91,11 +94,14 @@ final class ShazamHtmlClient {
 		request.setHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
 		request.setHeader("Accept-Language", "en-US,en;q=0.9");
 		request.setHeader("Cache-Control", "max-age=0");
+		request.setHeader("Sec-CH-UA", "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Brave\";v=\"150\"");
+		request.setHeader("Sec-CH-UA-Mobile", "?0");
+		request.setHeader("Sec-CH-UA-Platform", "\"Windows\"");
 		request.setHeader("Upgrade-Insecure-Requests", "1");
 		request.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36");
 		request.setHeader("Sec-Fetch-Dest", "document");
 		request.setHeader("Sec-Fetch-Mode", "navigate");
-		request.setHeader("Sec-Fetch-Site", "none");
+		request.setHeader("Sec-Fetch-Site", "same-origin");
 		request.setHeader("Sec-Fetch-User", "?1");
 		request.setHeader("Cookie", "geoip_country=IN");
 	}
@@ -116,5 +122,9 @@ final class ShazamHtmlClient {
 
 	private FriendlyException failure(String reason, String pageType, Throwable cause) {
 		return new FriendlyException("Shazam page returned " + reason + " while loading " + pageType + " metadata.", FriendlyException.Severity.SUSPICIOUS, cause);
+	}
+
+	/** The URL after Shazam has followed any legacy track-to-song redirect. */
+	record Page(String url, String html) {
 	}
 }

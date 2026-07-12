@@ -14,6 +14,7 @@ final class ShazamUrl {
 		ARTIST,
 		ALBUM,
 		CHART,
+		RADIOSPINS,
 		UNSUPPORTED
 	}
 
@@ -68,6 +69,7 @@ final class ShazamUrl {
 				case "artist" -> Route.ARTIST;
 				case "album" -> Route.ALBUM;
 				case "charts" -> Route.CHART;
+				case "radiospins" -> Route.RADIOSPINS;
 				default -> Route.UNSUPPORTED;
 			};
 			if (route == Route.UNSUPPORTED) {
@@ -76,6 +78,9 @@ final class ShazamUrl {
 
 			String id = null;
 			String slug = null;
+			if (route == Route.RADIOSPINS) {
+				return new ShazamUrl(input, "https://www.shazam.com/radiospins", route, locale, "radiospins", "top-200-on-radio");
+			}
 			if (route == Route.CHART) {
 				if (index + 2 >= parts.size()) {
 					return unsupported(input, uri);
@@ -99,7 +104,9 @@ final class ShazamUrl {
 				return unsupported(input, uri);
 			}
 
-			String canonicalKind = route == Route.TRACK ? "track" : kind;
+			// Keep the original route spelling and segment order. Shazam artist URLs
+			// are /artist/{slug}/{id}, while albums and songs are /{type}/{id}/{slug}.
+			String canonicalKind = kind;
 			StringBuilder path = new StringBuilder("/");
 			if (!locale.equals("en-us") || index > 0) {
 				path.append(locale).append('/');
@@ -107,6 +114,9 @@ final class ShazamUrl {
 			path.append(canonicalKind).append('/');
 			if (route == Route.CHART) {
 				path.append(id).append('/').append(slug);
+			} else if (route == Route.ARTIST) {
+				if (slug != null) path.append(slug).append('/');
+				path.append(id);
 			} else {
 				path.append(id);
 				if (slug != null) {

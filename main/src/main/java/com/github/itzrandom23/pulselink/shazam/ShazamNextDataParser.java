@@ -17,18 +17,171 @@ final class ShazamNextDataParser {
 
 	private static final String NEXT_PUSH = "self.__next_f.push(";
 	private static final Pattern SHAZAM_URL = Pattern.compile("https?://(?:www\\.)?shazam\\.com/(?:[a-z]{2}-[a-z]{2}/)?track/(\\d+)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern APPLE_MUSIC_URL = Pattern.compile("https://music\\.apple\\.com/[^\"'<>\\s\\\\]+", Pattern.CASE_INSENSITIVE);
+	private static final Pattern CANONICAL_SONG_ID = Pattern.compile("<link[^>]+rel=[\"']canonical[\"'][^>]+href=[\"'][^\"']*/(?:song|track)/(\\d+)/", Pattern.CASE_INSENSITIVE);
+	private static final Pattern APP_SONG_ID = Pattern.compile("shazam://(?:v5/track|song)/(\\d+)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern TRACK_TITLE = Pattern.compile("class=\"[^\"]*NewTrackPageHeader_trackTitle[^\"]*\"[^>]*>([^<]+)<", Pattern.CASE_INSENSITIVE);
+	private static final Pattern TITLE = Pattern.compile("<title[^>]*>(.*?)\\s*-\\s*.*?Song Lyrics", Pattern.CASE_INSENSITIVE);
+	private static final Pattern ARTIST_TOP_TRACK = Pattern.compile("\"track_title\":\"([^\"]+)\"[\\s\\S]*?\"artist_name\":\"([^\"]+)\"[\\s\\S]*?\"songData\":\\{[\\s\\S]*?\"id\":\"(\\d+)\"[\\s\\S]*?\"attributes\":\\{[\\s\\S]*?\"url\":\"(https://music\\.apple\\.com/[^\"]+)\"[\\s\\S]*?\\}[\\s\\S]*?\\},\"countData\":(\\d+)");
+	private static final Pattern JSON_LD_SCRIPT = Pattern.compile("<script[^>]+type=[\"']application/ld\\+json[\"'][^>]*>([\\s\\S]*?)</script>", Pattern.CASE_INSENSITIVE);
+	private static final Pattern RADIO_SPINS_APPLE_LINK = Pattern.compile("\\\\\"amLink\\\\\":\\\\\"(https://music\\.apple\\.com/[^\"\\\\]+)\\\\\"");
 
 	List<Song> parse(String html) {
 		String flightData = flightData(html);
-		if (flightData.isBlank()) {
-			return List.of();
-		}
-
 		Map<String, Song> songs = new LinkedHashMap<>();
-		collect(flightData, "\"chartAppearances\"", true, songs);
-		collect(flightData, "\"songData\"", false, songs);
-		collect(flightData, "\"attributes\"", false, songs);
+		if (!flightData.isBlank()) {
+			collect(flightData, "\"chartAppearances\"", true, songs);
+			collect(flightData, "\"songData\"", false, songs);
+			collect(flightData, "\"attributes\"", false, songs);
+		}
+		if (songs.isEmpty()) {
+			collectAppleMusicLinks(html, songs);
+		}
 		return new ArrayList<>(songs.values());
+	}
+
+	/**
+	 * Charts and Radio Spins contain every queueable track as an Apple Music
+	 * link. Flight metadata only contains the initially rendered subset, so it
+	 * must not be used as the authoritative list for these pages.
+	 */
+	List<Song> parseAppleMusicLinks(String html) {
+		Map<String, Song> songs = new LinkedHashMap<>();
+		collectAppleMusicLinks(html, songs);
+		return new ArrayList<>(songs.values());
+	}
+
+	/** Radio Spins exposes its complete ordered track list through escaped amLink fields. */
+	List<Song> parseRadioSpins(String html) {
+		Map<String, Song> songs = new LinkedHashMap<>();
+		Matcher matcher = RADIO_SPINS_APPLE_LINK.matcher(html);
+		while (matcher.find()) {
+			String url = cleanAppleMusicUrl(matcher.group(1));
+			if (url == null) continue;
+			String appleMusicId = appleMusicSongIdFromUrl(url);
+			if (!appleMusicId.isBlank()) songs.putIfAbsent(appleMusicId, new Song("Apple Music track", "unknown", 0L, "", "", appleMusicId, url, "", "", "", 0, 0, 0));
+		}
+		return new ArrayList<>(songs.values());
+	}
+
+	/** Extracts only Shazam's ranked artist top-track cards, not every song on the artist page. */
+	List<Song> parseArtistTopSongs(String html) {
+		String decoded = decode(html).replace("\\\"", "\"").replace("\\u0027", "'").replace("\\u003c", "<").replace("\\u003e", ">");
+		Map<String, RankedSong> songs = new LinkedHashMap<>();
+		Matcher matcher = ARTIST_TOP_TRACK.matcher(decoded);
+		while (matcher.find()) {
+			String url = cleanAppleMusicUrl(matcher.group(4));
+			if (url == null) continue;
+			String appleMusicId = appleMusicSongIdFromUrl(url);
+			if (appleMusicId.isBlank()) continue;
+			long count = Long.parseLong(matcher.group(5));
+			Song song = new Song(decode(matcher.group(1)), decode(matcher.group(2)), 0L, "", "", appleMusicId, url, "", "", "", 0, 0, 0);
+			RankedSong existing = songs.get(appleMusicId);
+			if (existing == null || count > existing.count) songs.put(appleMusicId, new RankedSong(song, count));
+		}
+		return songs.values().stream().sorted(Comparator.comparingLong((RankedSong song) -> song.count).reversed()).map(song -> song.song).toList();
+	}
+
+	String parseAlbumName(String html) {
+		Matcher matcher = JSON_LD_SCRIPT.matcher(html);
+		while (matcher.find()) {
+			try {
+				JsonBrowser json = JsonBrowser.parse(matcher.group(1));
+				if ("MusicAlbum".equals(json.get("@type").safeText())) return json.get("name").safeText();
+			} catch (IOException | RuntimeException ignored) {
+				// Continue with other JSON-LD blocks if one is malformed.
+			}
+		}
+		return "";
+	}
+
+	private static final class RankedSong {
+		private final Song song;
+		private final long count;
+		private RankedSong(Song song, long count) { this.song = song; this.count = count; }
+	}
+
+	/**
+	 * A song page often embeds links for related tracks. Only the Apple Music
+	 * link with the same ID as the canonical Shazam song is the current track.
+	 */
+	Song parseTrack(String html) {
+		String shazamId = firstMatch(CANONICAL_SONG_ID, html);
+		if (shazamId.isBlank()) shazamId = firstMatch(APP_SONG_ID, html);
+		if (shazamId.isBlank()) return null;
+
+		String title = firstMatch(TRACK_TITLE, html);
+		if (title.isBlank()) title = firstMatch(TITLE, html);
+		if (title.isBlank()) title = "Shazam track";
+		title = decode(title);
+
+		Matcher matcher = APPLE_MUSIC_URL.matcher(html);
+		while (matcher.find()) {
+			String cleanUrl = cleanAppleMusicUrl(matcher.group());
+			if (cleanUrl == null) continue;
+			String appleMusicId = appleMusicSongIdFromUrl(cleanUrl);
+			if (shazamId.equals(appleMusicId)) {
+				return new Song(title, "unknown", 0L, "", shazamId, appleMusicId, cleanUrl, "", "", "", 0, 0, 0);
+			}
+		}
+		return null;
+	}
+
+	private String firstMatch(Pattern pattern, String input) {
+		Matcher matcher = pattern.matcher(input);
+		return matcher.find() ? matcher.group(1) : "";
+	}
+
+	private String decode(String value) {
+		return value.replace("&amp;", "&").replace("&#x26;", "&").replace("\\u0026", "&").replace("\\/", "/");
+	}
+
+	private String cleanAppleMusicUrl(String rawUrl) {
+		try {
+			java.net.URI uri = java.net.URI.create(decode(rawUrl));
+			String songId = appleMusicSongId(uri.getRawQuery());
+			return songId.isBlank() ? null : uri.getScheme() + "://" + uri.getAuthority() + uri.getPath() + "?i=" + songId;
+		} catch (IllegalArgumentException ignored) {
+			return null;
+		}
+	}
+
+	private String appleMusicSongIdFromUrl(String url) {
+		try {
+			return appleMusicSongId(java.net.URI.create(url).getRawQuery());
+		} catch (IllegalArgumentException ignored) {
+			return "";
+		}
+	}
+
+	private String appleMusicSongId(String query) {
+		if (query == null) return "";
+		return java.util.Arrays.stream(query.split("&")).map(part -> part.split("=", 2)).filter(part -> part.length == 2 && part[0].equals("i")).map(part -> part[1]).findFirst().orElse("");
+	}
+
+	/**
+	 * Shazam's server-rendered pages expose the Apple Music link for every one
+	 * of the supported page types. This intentionally does not depend on the
+	 * volatile Next.js Flight object layout used for the richer metadata above.
+	 */
+	private void collectAppleMusicLinks(String html, Map<String, Song> songs) {
+		String decoded = html.replace("\\u0026", "&").replace("\\/", "/").replace("&amp;", "&").replace("&#x26;", "&");
+		Matcher matcher = APPLE_MUSIC_URL.matcher(decoded);
+		while (matcher.find()) {
+			String rawUrl = matcher.group();
+			try {
+				java.net.URI uri = java.net.URI.create(rawUrl);
+				String query = uri.getRawQuery();
+				if (query == null) continue;
+				String songId = java.util.Arrays.stream(query.split("&")).map(part -> part.split("=", 2)).filter(part -> part.length == 2 && part[0].equals("i")).map(part -> part[1]).findFirst().orElse("");
+				if (songId.isBlank()) continue;
+				String cleanUrl = uri.getScheme() + "://" + uri.getAuthority() + uri.getPath() + "?i=" + songId;
+				Song song = new Song("Apple Music track", "unknown", 0L, "", "", songId, cleanUrl, "", "", "", 0, 0, 0);
+				merge(songs, song);
+			} catch (IllegalArgumentException ignored) {
+				// Skip malformed embedded links and continue with the remaining tracks.
+			}
+		}
 	}
 
 	private String flightData(String html) {

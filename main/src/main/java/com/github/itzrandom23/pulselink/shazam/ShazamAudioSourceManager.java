@@ -7,6 +7,7 @@ import com.github.topi314.lavasearch.AudioSearchManager;
 import com.github.topi314.lavasearch.result.AudioSearchResult;
 import com.github.topi314.lavasearch.result.BasicAudioSearchResult;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpConfigurable;
@@ -14,6 +15,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioItem;
 import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
+import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.BasicAudioPlaylist;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.config.RequestConfig;
@@ -23,8 +25,8 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInput;
 import java.io.IOException;
+import java.io.DataInput;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public class ShazamAudioSourceManager extends MirroringAudioSourceManager implements HttpConfigurable, AudioSearchManager {
@@ -42,7 +45,7 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 	private static final String SEARCH_PREFIX = "szsearch:";
 	private static final String ALT_SEARCH_PREFIX = "shsearch:";
 	private static final String SEARCH_API_BASE = "https://www.shazam.com/services/amapi/v1/catalog/US/search?types=songs&term=%s&limit=%d";
-	private static final int SEARCH_LIMIT = 10;
+	private static final int SEARCH_LIMIT = 1;
 	private static final int MAX_PAGE_CACHE_ENTRIES = 128;
 	private static final Map<String, CachedPage> PAGE_CACHE = new ConcurrentHashMap<>();
 
@@ -78,7 +81,10 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		}
 		try {
 			AudioItem item = getSearch(stripSearchPrefix(query));
-			if (item instanceof BasicAudioPlaylist playlist) {
+			if (item instanceof AudioTrack track) {
+				return new BasicAudioSearchResult(List.of(track), List.of(), List.of(), List.of(), List.of());
+			}
+			if (item instanceof AudioPlaylist playlist) {
 				return new BasicAudioSearchResult(playlist.getTracks(), List.of(), List.of(), List.of(), List.of());
 			}
 		} catch (IOException e) {
@@ -112,59 +118,80 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 
 	@Override
 	public AudioTrack decodeTrack(AudioTrackInfo trackInfo, DataInput input) throws IOException {
-		var extended = super.decodeTrack(input);
-		return new ShazamAudioTrack(trackInfo, extended.albumName, extended.albumUrl, extended.artistUrl, extended.artistArtworkUrl, this);
+		throw new IOException("Previously serialized Shazam tracks are no longer supported; load the Shazam URL again.");
 	}
 
 	private AudioItem loadPage(ShazamUrl page) throws IOException {
-		List<ShazamNextDataParser.Song> songs = pageSongs(page);
-		List<ShazamNextDataParser.Song> selectedSongs = ShazamPageSelector.select(page, songs);
-		if (page.route == ShazamUrl.Route.TRACK) {
-			return selectedSongs.isEmpty() ? AudioReference.NO_TRACK : toTrack(selectedSongs.get(0), page.originalUrl);
+		PageSongs pageSongs = pageSongs(page);
+		// Artist pages are already reduced to Shazam's ranked top-track cards.
+		// Do not discard collaborations just because their artist credit differs.
+		List<ShazamNextDataParser.Song> selectedSongs = pageSongs.page.route == ShazamUrl.Route.ARTIST
+			? pageSongs.songs : ShazamPageSelector.select(pageSongs.page, pageSongs.songs);
+		if (pageSongs.page.route == ShazamUrl.Route.TRACK) {
+			return selectedSongs.isEmpty() ? AudioReference.NO_TRACK : loadAppleMusicUrl(selectedSongs.get(0).url);
 		}
-		String playlistName = switch (page.route) {
-			case ARTIST -> page.slug == null ? "Shazam Artist" : page.slug.replace('-', ' ').replace('_', ' ');
-			case ALBUM -> selectedSongs.isEmpty() ? "Shazam Album" : selectedSongs.get(0).album;
-			case CHART -> "Shazam " + page.id + " - " + page.slug;
+		String playlistName = switch (pageSongs.page.route) {
+			case ARTIST -> pageSongs.page.slug == null ? "Shazam Artist - Top Tracks" : displayName(pageSongs.page.slug) + " - Top Tracks";
+			case ALBUM -> !pageSongs.albumName.isBlank() ? pageSongs.albumName : selectedSongs.isEmpty() ? "Shazam Album" : selectedSongs.get(0).album;
+			case CHART -> "Shazam " + pageSongs.page.id + " - " + pageSongs.page.slug;
+			case RADIOSPINS -> "Shazam Top 200 on Radio";
 			case TRACK, UNSUPPORTED -> "Shazam";
 		};
-		return playlist(playlistName, page.originalUrl, selectedSongs);
+		return playlist(playlistName, selectedSongs);
 	}
 
-	private List<ShazamNextDataParser.Song> pageSongs(ShazamUrl page) throws IOException {
+	private PageSongs pageSongs(ShazamUrl page) throws IOException {
 		long now = System.currentTimeMillis();
 		CachedPage cached = PAGE_CACHE.get(page.normalizedUrl);
 		if (cached != null && cached.expiresAt > now) {
-			return cached.songs;
+			return new PageSongs(cached.page, cached.songs, cached.albumName);
 		}
-		String html = new ShazamHtmlClient(this.httpInterfaceManager.getInterface()).get(page);
-		List<ShazamNextDataParser.Song> songs = nextDataParser.parse(html);
+		ShazamHtmlClient.Page response = new ShazamHtmlClient(this.httpInterfaceManager.getInterface()).get(page);
+		ShazamUrl resolvedPage = ShazamUrl.parse(response.url());
+		if (resolvedPage == null || resolvedPage.route == ShazamUrl.Route.UNSUPPORTED) resolvedPage = page;
+		ShazamNextDataParser.Song track = resolvedPage.route == ShazamUrl.Route.TRACK ? nextDataParser.parseTrack(response.html()) : null;
+		List<ShazamNextDataParser.Song> songs = switch (resolvedPage.route) {
+			case CHART -> nextDataParser.parseAppleMusicLinks(response.html());
+			case RADIOSPINS -> nextDataParser.parseRadioSpins(response.html());
+			case ARTIST -> nextDataParser.parseArtistTopSongs(response.html());
+			default -> track == null ? nextDataParser.parse(response.html()) : List.of(track);
+		};
+		String albumName = resolvedPage.route == ShazamUrl.Route.ALBUM ? nextDataParser.parseAlbumName(response.html()) : "";
 		if (songs.isEmpty()) {
 			throw new FriendlyException("Shazam page did not contain Next.js song metadata.", FriendlyException.Severity.SUSPICIOUS, null);
 		}
 		if (PAGE_CACHE.size() >= MAX_PAGE_CACHE_ENTRIES) {
 			PAGE_CACHE.clear();
 		}
-		PAGE_CACHE.put(page.normalizedUrl, new CachedPage(songs, now + cacheDurationMillis(page.route)));
-		return songs;
+		PAGE_CACHE.put(page.normalizedUrl, new CachedPage(resolvedPage, songs, albumName, now + cacheDurationMillis(resolvedPage.route)));
+		return new PageSongs(resolvedPage, songs, albumName);
 	}
 
 
-	private AudioItem playlist(String name, String originalUrl, List<ShazamNextDataParser.Song> songs) {
+	private AudioItem playlist(String name, List<ShazamNextDataParser.Song> songs) {
 		Map<String, AudioTrack> tracks = new LinkedHashMap<>();
 		for (ShazamNextDataParser.Song song : songs) {
-			AudioTrack track = toTrack(song, originalUrl);
-			tracks.putIfAbsent(track.getInfo().identifier, track);
+			AudioItem item = loadAppleMusicUrl(song.url);
+			if (item instanceof AudioTrack track) {
+				tracks.putIfAbsent(track.getInfo().identifier, track);
+			} else if (item instanceof AudioPlaylist playlist) {
+				for (AudioTrack track : playlist.getTracks()) tracks.putIfAbsent(track.getInfo().identifier, track);
+			}
 		}
 		return tracks.isEmpty() ? AudioReference.NO_TRACK : new BasicAudioPlaylist(name, new ArrayList<>(tracks.values()), null, false);
 	}
 
-	private AudioTrack toTrack(ShazamNextDataParser.Song song, String originalUrl) {
-		String identifier = !song.shazamTrackId.isBlank() ? song.shazamTrackId : !song.appleMusicTrackId.isBlank() ? song.appleMusicTrackId
-			: !song.isrc.isBlank() ? song.isrc : Integer.toUnsignedString((song.artist + "\u0000" + song.title).hashCode());
-		AudioTrackInfo info = new AudioTrackInfo(song.title, song.artist, song.duration, identifier, false, originalUrl,
-			song.artworkUrl.isBlank() ? null : song.artworkUrl, song.isrc.isBlank() ? null : song.isrc);
-		return new ShazamAudioTrack(info, song.album.isBlank() ? null : song.album, null, null, null, this);
+	/** Routes a Shazam-discovered URL through the already registered Apple Music source. */
+	private AudioItem loadAppleMusicUrl(String url) {
+		if (url == null || url.isBlank()) return AudioReference.NO_TRACK;
+		CompletableFuture<AudioItem> result = new CompletableFuture<>();
+		getAudioPlayerManager().loadItem(url, new AudioLoadResultHandler() {
+			@Override public void trackLoaded(AudioTrack track) { result.complete(track); }
+			@Override public void playlistLoaded(AudioPlaylist playlist) { result.complete(playlist); }
+			@Override public void noMatches() { result.complete(AudioReference.NO_TRACK); }
+			@Override public void loadFailed(FriendlyException exception) { result.completeExceptionally(exception); }
+		});
+		return result.join();
 	}
 
 	private AudioItem getSearch(String query) throws IOException {
@@ -176,18 +203,12 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		try (var response = this.httpInterfaceManager.getInterface().execute(request)) {
 			if (response.getStatusLine().getStatusCode() != 200 || response.getEntity() == null) return AudioReference.NO_TRACK;
 			JsonBrowser songs = JsonBrowser.parse(IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8)).get("results").get("songs").get("data");
-			List<AudioTrack> tracks = new ArrayList<>();
 			for (JsonBrowser item : songs.values()) {
 				JsonBrowser attributes = item.get("attributes");
-				String title = attributes.get("name").safeText();
-				String artist = attributes.get("artistName").safeText();
-				if (!title.isBlank() && !artist.isBlank()) {
-					String artwork = attributes.get("artwork").get("url").safeText().replace("{w}", "1000").replace("{h}", "1000");
-					tracks.add(new ShazamAudioTrack(new AudioTrackInfo(title, artist, attributes.get("durationInMillis").asLong(0L), item.get("id").safeText(), false,
-						attributes.get("url").safeText(), artwork.isBlank() ? null : artwork, attributes.get("isrc").safeText()), null, null, null, null, this));
-				}
+				String appleMusicUrl = attributes.get("url").safeText();
+				if (!appleMusicUrl.isBlank()) return loadAppleMusicUrl(appleMusicUrl);
 			}
-			return tracks.isEmpty() ? AudioReference.NO_TRACK : new BasicAudioPlaylist("Shazam Search: " + query, tracks, null, true);
+			return AudioReference.NO_TRACK;
 		}
 	}
 
@@ -203,14 +224,33 @@ public class ShazamAudioSourceManager extends MirroringAudioSourceManager implem
 		return switch (route) {
 			case TRACK, ALBUM -> 30L * 60L * 1000L;
 			case ARTIST -> 15L * 60L * 1000L;
-			case CHART -> 3L * 60L * 1000L;
+			case CHART, RADIOSPINS -> 3L * 60L * 1000L;
 			case UNSUPPORTED -> 0L;
 		};
 	}
 
+	private String displayName(String slug) {
+		StringBuilder output = new StringBuilder();
+		for (String word : slug.replace('_', '-').split("-")) {
+			if (word.isBlank()) continue;
+			if (!output.isEmpty()) output.append(' ');
+			output.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+		}
+		return output.isEmpty() ? "Shazam Artist" : output.toString();
+	}
+
 	private static class CachedPage {
+		private final ShazamUrl page;
 		private final List<ShazamNextDataParser.Song> songs;
+		private final String albumName;
 		private final long expiresAt;
-		private CachedPage(List<ShazamNextDataParser.Song> songs, long expiresAt) { this.songs = List.copyOf(songs); this.expiresAt = expiresAt; }
+		private CachedPage(ShazamUrl page, List<ShazamNextDataParser.Song> songs, String albumName, long expiresAt) { this.page = page; this.songs = List.copyOf(songs); this.albumName = albumName; this.expiresAt = expiresAt; }
+	}
+
+	private static class PageSongs {
+		private final ShazamUrl page;
+		private final List<ShazamNextDataParser.Song> songs;
+		private final String albumName;
+		private PageSongs(ShazamUrl page, List<ShazamNextDataParser.Song> songs, String albumName) { this.page = page; this.songs = songs; this.albumName = albumName; }
 	}
 }

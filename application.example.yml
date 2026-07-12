@@ -78,6 +78,9 @@ plugins:
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25
+      # Optional. The built-in Audiomack web credentials are used when omitted.
+      # consumerKey: "your consumer key"
+      # consumerSecret: "your consumer secret"
     gaana:
       # Optional. Defaults to https://gaanapi-wine.vercel.app/
       apiUrl: "https://gaanapi-wine.vercel.app/"
@@ -95,8 +98,6 @@ plugins:
       #   algorithm: DES
       #   secretKey: "38346591"
       #   transformation: DES/ECB/PKCS5Padding
-    qobuz:
-      userOauthToken: "" # Required 
 server:
   port: 2333
   address: 0.0.0.0
