@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.7"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.8"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -19,6 +19,19 @@ plugins:
 ## Configuration
 
 See [`application.example.yml`](https://github.com/ItzRandom23/PulseLink/blob/main/application.example.yml) for the current full example configuration.
+
+### Lyrics
+
+Enable LRCLIB lyrics with:
+
+```yaml
+plugins:
+  pulselink:
+    lyrics-sources:
+      lrcLib: true
+```
+
+LRCLIB searches by the loaded track's title and artist and returns plain lyrics, synchronized lyrics, or both when available.
 
 ## Providers and Mirroring
 
@@ -52,14 +65,14 @@ Playback modes:
 
 Credentials and external requirements:
 - No credentials required: Spotify, Amazon Music, Shazam, Pandora, Gaana, SoundCloud, FloweryTTS
-- Spotify mix recommendations use an anonymous token endpoint. By default PulseLink expects `http://140.245.242.153:8082/api/token`, and you can override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
+- Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the anonymous token endpoint. By default that token endpoint is `http://140.245.242.153:8082/api/token`; override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`, Qobuz `userOauthToken`
 - Other required setup: `yt-dlp` installed for yt-dlp, and the new YouTube source plugin for YouTube search / lyrics
 
 Supported search prefixes:
 - Spotify: `spsearch:query`
-- Spotify mix recommendations: `sprec:mix:track:id`, `sprec:mix:album:id`, `sprec:mix:artist:id`
+- Spotify mix recommendations: `sprec:mix:track:id` requests one direct next-track recommendation before fallback; `sprec:mix:album:id` and `sprec:mix:artist:id` use Spotify's inspired-by mix flow.
 - Amazon Music: `amzsearch:query`
 - Apple Music: `amsearch:query`
 - Deezer: `dzsearch:query`

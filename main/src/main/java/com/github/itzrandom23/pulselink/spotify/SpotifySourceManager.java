@@ -396,44 +396,59 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
             var seedType = matcher.group("seedType");
             var seed = matcher.group("seed");
 
-            var accessToken = this.getAnonymousAccessToken();
-            var request = new HttpGet(
-                    CLIENT_API_BASE + "inspiredby-mix/v2/seed_to_playlist/spotify:"
-                            + seedType + ":" + seed + "?response-format=json");
-            request.setHeader("Authorization", "Bearer " + accessToken);
-
-            var json = PulseLinkTools.fetchResponseAsJson(
-                    this.httpInterfaceManager.getInterface(),
-                    request);
-
-            var mediaItems = json.get("mediaItems");
-            if (mediaItems != null && mediaItems.isList() && !mediaItems.values().isEmpty()) {
-                var uri = mediaItems.index(0).get("uri").safeText();
-                if (uri != null && !uri.isBlank()) {
-                    var parts = uri.split(":");
-                    if (parts.length >= 3) {
-                        var item = resolveViaLeo("https://open.spotify.com/playlist/" + parts[2], preview);
-                        if ("track".equals(seedType)) {
-                            return filterMixPlaylist(item, resolveSeedTrack(seed));
-                        }
-                        return item;
-                    }
+            // The resolver's direct recommendation endpoint supports track
+            // URLs only. Album and artist mixes use Spotify's existing flow.
+            if ("track".equals(seedType)) {
+                var recommended = getResolverRecommendations(
+                        "https://open.spotify.com/track/" + seed, 1);
+                if (recommended != null && recommended != AudioReference.NO_TRACK) {
+                    return recommended;
                 }
             }
 
-            return AudioReference.NO_TRACK;
+            // The resolver reports no items for some seeds; retain the former
+            // inspired-by playlist behavior as the fallback in that case.
+            return getInspiredByMix(seedType, seed, preview);
         }
 
-        var encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
+        return getResolverRecommendations(query, 0);
+    }
 
-        var request = new HttpGet(
-                this.resolver + "/api/recommendations?url=" + encoded);
+    private AudioItem getResolverRecommendations(String spotifyUrl, int limit) throws IOException {
+        var encoded = URLEncoder.encode(spotifyUrl, StandardCharsets.UTF_8);
+        var endpoint = this.resolver + "/api/recommendations?url=" + encoded;
+        if (limit > 0) endpoint += "&limit=" + limit;
+
+        var request = new HttpGet(endpoint);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),
                 request);
 
-        return parsePlaylist(json, "Recommendations");
+        var item = parsePlaylist(json, "Recommendations");
+        return item == null ? AudioReference.NO_TRACK : item;
+    }
+
+    private AudioItem getInspiredByMix(String seedType, String seed, boolean preview) throws IOException {
+        var accessToken = this.getAnonymousAccessToken();
+        var request = new HttpGet(
+                CLIENT_API_BASE + "inspiredby-mix/v2/seed_to_playlist/spotify:"
+                        + seedType + ":" + seed + "?response-format=json");
+        request.setHeader("Authorization", "Bearer " + accessToken);
+
+        var json = PulseLinkTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+        var mediaItems = json.get("mediaItems");
+        if (mediaItems != null && mediaItems.isList() && !mediaItems.values().isEmpty()) {
+            var uri = mediaItems.index(0).get("uri").safeText();
+            if (uri != null && !uri.isBlank()) {
+                var parts = uri.split(":");
+                if (parts.length >= 3) {
+                    var item = resolveViaLeo("https://open.spotify.com/playlist/" + parts[2], preview);
+                    return "track".equals(seedType) ? filterMixPlaylist(item, resolveSeedTrack(seed)) : item;
+                }
+            }
+        }
+        return AudioReference.NO_TRACK;
     }
 
     private AudioTrack resolveSeedTrack(String seed) throws IOException {

@@ -30,7 +30,8 @@ plugins:
       youtube: false
       yandexmusic: false
       vkmusic: false
-      lrcLib: false
+      # Free plain and synchronized lyrics from LRCLIB.
+      lrcLib: true
     spotify:
       # Optional. Defaults to http://140.245.242.153:8081
       apiUrl: "http://140.245.242.153:8081"
