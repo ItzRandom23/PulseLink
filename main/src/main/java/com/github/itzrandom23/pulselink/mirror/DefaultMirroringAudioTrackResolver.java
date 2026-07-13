@@ -8,9 +8,14 @@ import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackResolver {
 
 	private static final Logger log = LoggerFactory.getLogger(DefaultMirroringAudioTrackResolver.class);
+	/* A SoundCloud search result is parsed through this resolver again when it has no full stream. */
+	private static final Set<String> ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES = ConcurrentHashMap.newKeySet();
 
 	private String[] providers = {
 		"ytsearch:\"" + MirroringAudioSourceManager.ISRC_PATTERN + "\"",
@@ -36,11 +41,7 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 				continue;
 			}
 
-			if ("soundcloud".equals(mirroringAudioTrack.getSourceManager().getSourceName()) && provider.startsWith("scsearch:")) {
-				log.warn("Skipping provider \"{}\" because SoundCloud search can not be used as a mirror provider for SoundCloud tracks.", provider);
-				continue;
-			}
-
+			boolean soundCloudMirrorSearch = "soundcloud".equals(mirroringAudioTrack.getSourceManager().getSourceName()) && provider.startsWith("scsearch:");
 			if (provider.contains(MirroringAudioSourceManager.ISRC_PATTERN)) {
 				if (mirroringAudioTrack.getInfo().isrc != null && !mirroringAudioTrack.getInfo().isrc.isEmpty()) {
 					provider = provider.replace(MirroringAudioSourceManager.ISRC_PATTERN, mirroringAudioTrack.getInfo().isrc.replace("-", ""));
@@ -51,6 +52,10 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 			}
 
 			provider = provider.replace(MirroringAudioSourceManager.QUERY_PATTERN, getTrackTitle(mirroringAudioTrack));
+			if (soundCloudMirrorSearch && !ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.add(provider)) {
+				log.debug("Skipping nested SoundCloud mirror search to prevent a preview-only result from recursing.");
+				continue;
+			}
 			log.debug("Attempting mirror resolution with provider \"{}\" for track \"{}\".", provider, mirroringAudioTrack.getInfo().title);
 
 			AudioItem item;
@@ -59,6 +64,8 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 			} catch (Exception e) {
 				log.error("Failed to load track from provider \"{}\"!", provider, e);
 				continue;
+			} finally {
+				if (soundCloudMirrorSearch) ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.remove(provider);
 			}
 			// If the track is an empty playlist, skip the provider
 			if (item instanceof AudioPlaylist && ((AudioPlaylist) item).getTracks().isEmpty() || item == AudioReference.NO_TRACK) {

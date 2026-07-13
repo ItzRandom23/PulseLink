@@ -11,10 +11,9 @@ final class ShazamUrl {
 
 	enum Route {
 		TRACK,
+		SONG,
 		ARTIST,
 		ALBUM,
-		CHART,
-		RADIOSPINS,
 		UNSUPPORTED
 	}
 
@@ -65,11 +64,10 @@ final class ShazamUrl {
 
 			String kind = parts.get(index).toLowerCase(Locale.ROOT);
 			Route route = switch (kind) {
-				case "track", "song" -> Route.TRACK;
+				case "track" -> Route.TRACK;
+				case "song" -> Route.SONG;
 				case "artist" -> Route.ARTIST;
 				case "album" -> Route.ALBUM;
-				case "charts" -> Route.CHART;
-				case "radiospins" -> Route.RADIOSPINS;
 				default -> Route.UNSUPPORTED;
 			};
 			if (route == Route.UNSUPPORTED) {
@@ -78,26 +76,12 @@ final class ShazamUrl {
 
 			String id = null;
 			String slug = null;
-			if (route == Route.RADIOSPINS) {
-				return new ShazamUrl(input, "https://www.shazam.com/radiospins", route, locale, "radiospins", "top-200-on-radio");
-			}
-			if (route == Route.CHART) {
-				if (index + 2 >= parts.size()) {
-					return unsupported(input, uri);
-				}
-				id = parts.get(index + 1);
-				slug = parts.get(index + 2);
-			} else {
-				for (int partIndex = index + 1; partIndex < parts.size(); partIndex++) {
-					if (parts.get(partIndex).matches("\\d+")) {
-						id = parts.get(partIndex);
-						if (route == Route.ARTIST && partIndex > index + 1) {
-							slug = parts.get(partIndex - 1);
-						} else if (partIndex + 1 < parts.size()) {
-							slug = parts.get(partIndex + 1);
-						}
-						break;
-					}
+			for (int partIndex = index + 1; partIndex < parts.size(); partIndex++) {
+				if (parts.get(partIndex).matches("\\d+")) {
+					id = parts.get(partIndex);
+					if (route == Route.ARTIST && partIndex > index + 1) slug = parts.get(partIndex - 1);
+					else if (partIndex + 1 < parts.size()) slug = parts.get(partIndex + 1);
+					break;
 				}
 			}
 			if (id == null) {
@@ -112,9 +96,7 @@ final class ShazamUrl {
 				path.append(locale).append('/');
 			}
 			path.append(canonicalKind).append('/');
-			if (route == Route.CHART) {
-				path.append(id).append('/').append(slug);
-			} else if (route == Route.ARTIST) {
+			if (route == Route.ARTIST) {
 				if (slug != null) path.append(slug).append('/');
 				path.append(id);
 			} else {

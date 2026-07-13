@@ -8,7 +8,7 @@ PulseLink is a Lavalink/Lavaplayer plugin that resolves metadata from multiple m
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.6.9"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.7.0"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -58,8 +58,8 @@ Playback modes:
 | JioSaavn | Direct | Uses built-in decryption defaults; `decryption` can be overridden in config. |
 | Audiomack | Direct | Uses built-in web credentials; `consumerKey` and `consumerSecret` can be overridden. |
 | Gaana | Direct | No credentials required. |
-| SoundCloud | Direct / Mirror fallback | No credentials required. Supports tracks, sets/playlists, user pages, `m.soundcloud.com`, `on.soundcloud.com`, and `snd.sc` links. SoundCloud Go/preview-only tracks keep SoundCloud metadata but borrow mirror duration/playback when direct audio is unavailable. |
-| Shazam | Converter | Resolves Shazam search and page links to their Apple Music URLs; Apple Music handles metadata and playback. |
+| SoundCloud | Direct / Mirror fallback | No credentials required. Supports tracks, sets/playlists, user pages, `m.soundcloud.com`, `on.soundcloud.com`, and `snd.sc` links. Full SoundCloud results can be selected as mirrors; preview-only results proceed to the next provider. |
+| Shazam | Mirror | Resolves searches plus exact `/song`, `/artist`, and `/album` links through Shazam's US Apple Music catalog API. Returned tracks retain Shazam metadata and URIs; configured providers supply playback. `/track` links intentionally return no match. |
 | Pandora | Mirror | Uses the built-in remote token provider; `remoteTokenUrl`, `csrfToken`, or `authToken` can override it. |
 | yt-dlp | Direct | Requires `yt-dlp` installed. |
 | FloweryTTS | Direct | No credentials required. |
@@ -93,6 +93,7 @@ Supported search prefixes:
 
 SoundCloud fallback notes:
 - If SoundCloud only exposes a 30-second preview, PulseLink resolves a mirror during load and uses the mirror track duration for the queued SoundCloud track.
+- `scsearch:` may be included in mirror providers: playable full SoundCloud search results are used, while preview-only results are skipped without recursive SoundCloud searching.
 
 ## Troubleshooting
 
