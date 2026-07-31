@@ -12,15 +12,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public abstract class MirroringAudioTrack extends ExtendedAudioTrack {
 
 	private static final Logger log = LoggerFactory.getLogger(MirroringAudioTrack.class);
 
-	protected final MirroringAudioSourceManager sourceManager;
+	public static final Duration DEFAULT_PROVIDER_TIMEOUT = Duration.ofSeconds(15);
 
-	public MirroringAudioTrack(AudioTrackInfo trackInfo, String albumName, String albumUrl, String artistUrl, String artistArtworkUrl, String previewUrl, boolean isPreview, MirroringAudioSourceManager sourceManager) {
+	protected final MirroringAudioSourceManager sourceManager;
+	protected MirrorResolutionContext resolutionContext;
+
+	public MirroringAudioTrack(AudioTrackInfo trackInfo, String albumName, String albumUrl,
+	                           String artistUrl, String artistArtworkUrl, String previewUrl,
+	                           boolean isPreview, MirroringAudioSourceManager sourceManager) {
 		super(trackInfo, albumName, albumUrl, artistUrl, artistArtworkUrl, previewUrl, isPreview);
 		this.sourceManager = sourceManager;
 	}
@@ -29,30 +38,50 @@ public abstract class MirroringAudioTrack extends ExtendedAudioTrack {
 
 	@Override
 	public void process(LocalAudioTrackExecutor executor) throws Exception {
+		if (this.resolutionContext == null) {
+			this.resolutionContext = new MirrorResolutionContext(
+				this.sourceManager.getSourceName(),
+				this.getIdentifier()
+			);
+		}
+		processWithContext(executor, this.resolutionContext);
+	}
+
+	protected void processWithContext(LocalAudioTrackExecutor executor,
+	                                   MirrorResolutionContext ctx) throws Exception {
+		if (ctx.isDeadlineExceeded()) {
+			throw new FriendlyException("Mirror resolution deadline exceeded.",
+				FriendlyException.Severity.COMMON, null);
+		}
 		if (this.isPreview) {
 			if (this.previewUrl == null) {
-				throw new FriendlyException("No preview url found", FriendlyException.Severity.COMMON, new IllegalArgumentException());
+				throw new FriendlyException("No preview url found", FriendlyException.Severity.COMMON,
+					new IllegalArgumentException());
 			}
 			try (var httpInterface = this.sourceManager.getHttpInterface()) {
-				try (var stream = new PersistentHttpStream(httpInterface, new URI(this.previewUrl), this.trackInfo.length)) {
+				try (var stream = new PersistentHttpStream(httpInterface, new URI(this.previewUrl),
+					this.trackInfo.length)) {
 					processDelegate(createAudioTrack(this.trackInfo, stream), executor);
 				}
 			}
 			return;
 		}
-		var track = this.sourceManager.getResolver().apply(this);
+		var item = this.sourceManager.getResolver().apply(this, ctx);
 
-		if (track instanceof AudioPlaylist) {
-			var tracks = ((AudioPlaylist) track).getTracks();
+		if (item instanceof AudioPlaylist) {
+			var tracks = ((AudioPlaylist) item).getTracks();
 			if (tracks.isEmpty()) {
 				throw new TrackNotFoundException("No tracks found in playlist or search result for track");
 			}
-			track = tracks.get(0);
+			item = tracks.get(0);
 		}
-		if (track instanceof InternalAudioTrack) {
-			((InternalAudioTrack) track).setUserData(this.getUserData());
-			var internalTrack = (InternalAudioTrack) track;
-			log.debug("Loaded track mirror from {} {}({}) ", internalTrack.getSourceManager().getSourceName(), internalTrack.getInfo().title, internalTrack.getInfo().uri);
+		if (item instanceof InternalAudioTrack) {
+			((InternalAudioTrack) item).setUserData(this.getUserData());
+			var internalTrack = (InternalAudioTrack) item;
+			log.debug("Loaded track mirror from {} {}({}) ",
+				internalTrack.getSourceManager().getSourceName(),
+				internalTrack.getInfo().title,
+				internalTrack.getInfo().uri);
 			processDelegate(internalTrack, executor);
 			return;
 		}
@@ -92,7 +121,20 @@ public abstract class MirroringAudioTrack extends ExtendedAudioTrack {
 				cf.completeExceptionally(exception);
 			}
 		});
-		return cf.join();
+		try {
+			return cf.get(DEFAULT_PROVIDER_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (TimeoutException e) {
+			cf.cancel(true);
+			log.warn("Provider timed out after {}ms for '{}'", DEFAULT_PROVIDER_TIMEOUT.toMillis(), query);
+			return AudioReference.NO_TRACK;
+		} catch (CancellationException | InterruptedException e) {
+			Thread.currentThread().interrupt();
+			cf.cancel(true);
+			return AudioReference.NO_TRACK;
+		} catch (Exception e) {
+			cf.cancel(true);
+			log.error("Provider load failed for '{}': {}", query, e.getMessage());
+			return AudioReference.NO_TRACK;
+		}
 	}
-
 }

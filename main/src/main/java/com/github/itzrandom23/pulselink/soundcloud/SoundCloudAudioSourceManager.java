@@ -4,6 +4,7 @@ import com.github.itzrandom23.pulselink.ExtendedAudioPlaylist;
 import com.github.itzrandom23.pulselink.PulseLinkTools;
 import com.github.itzrandom23.pulselink.mirror.MirroringAudioSourceManager;
 import com.github.itzrandom23.pulselink.mirror.MirroringAudioTrackResolver;
+import com.github.itzrandom23.pulselink.mirror.MirrorResolutionContext;
 import com.github.topi314.lavasearch.AudioSearchManager;
 import com.github.topi314.lavasearch.result.AudioSearchResult;
 import com.github.topi314.lavasearch.result.BasicAudioSearchResult;
@@ -320,7 +321,9 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 
 		AudioItem mirrored;
 		try {
-			mirrored = this.resolver.apply(track);
+			mirrored = this.resolver.apply(track, new MirrorResolutionContext(
+				this.getSourceName(), track.getIdentifier()
+			));
 		} catch (Exception exception) {
 			log.debug("SoundCloud mirror resolution failed for {}.", track.getInfo().uri, exception);
 			return null;

@@ -14,7 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackResolver {
 
 	private static final Logger log = LoggerFactory.getLogger(DefaultMirroringAudioTrackResolver.class);
-	/* A SoundCloud search result is parsed through this resolver again when it has no full stream. */
+
+	/**
+	 * Global guard preventing a SoundCloud search whose result is known to have no
+	 * full stream from re-entering the resolver for the identical query.  It is NOT
+	 * sufficient for full cycle detection — per-resolution provider/track-level
+	 * deduplication is done by {@link MirrorResolutionContext}.
+	 */
 	private static final Set<String> ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES = ConcurrentHashMap.newKeySet();
 
 	private String[] providers = {
@@ -29,61 +35,101 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 	}
 
 	@Override
-	public AudioItem apply(MirroringAudioTrack mirroringAudioTrack) {
-		for (var provider : providers) {
+	public AudioItem apply(MirroringAudioTrack track, MirrorResolutionContext ctx) {
+		if (ctx.isDeadlineExceeded()) {
+			log.warn("[Mirror] Resolution deadline exceeded for '{}'; aborting.", track.getInfo().title);
+			return AudioReference.NO_TRACK;
+		}
+
+		for (var provider : this.providers) {
+			if (ctx.isDeadlineExceeded()) {
+				return AudioReference.NO_TRACK;
+			}
+
 			if (provider.startsWith(SpotifySourceManager.SEARCH_PREFIX)) {
-				log.warn("Skipping provider \"{}\" because spotify search can not be used as a mirror provider.", provider);
+				log.debug("[Mirror] Skipping provider '{}' (Spotify cannot be a mirror provider).", provider);
 				continue;
 			}
-
 			if (provider.startsWith(AppleMusicSourceManager.SEARCH_PREFIX)) {
-				log.warn("Skipping provider \"{}\" because Apple Music search can not be used as a mirror provider.", provider);
+				log.debug("[Mirror] Skipping provider '{}' (Apple Music cannot be a mirror provider).", provider);
 				continue;
 			}
 
-			boolean soundCloudMirrorSearch = "soundcloud".equals(mirroringAudioTrack.getSourceManager().getSourceName()) && provider.startsWith("scsearch:");
+			String effectiveProvider = provider;
+
 			if (provider.contains(MirroringAudioSourceManager.ISRC_PATTERN)) {
-				if (mirroringAudioTrack.getInfo().isrc != null && !mirroringAudioTrack.getInfo().isrc.isEmpty()) {
-					provider = provider.replace(MirroringAudioSourceManager.ISRC_PATTERN, mirroringAudioTrack.getInfo().isrc.replace("-", ""));
+				var isrc = track.getInfo().isrc;
+				if (isrc != null && !isrc.isEmpty()) {
+					effectiveProvider = provider.replace(MirroringAudioSourceManager.ISRC_PATTERN,
+						isrc.replace("-", ""));
 				} else {
-					log.debug("Skipping provider \"{}\" because this track does not have an ISRC.", provider);
+					log.debug("[Mirror] Skipping provider '{}' because this track has no ISRC.", provider);
 					continue;
 				}
 			}
+			effectiveProvider = effectiveProvider.replace(MirroringAudioSourceManager.QUERY_PATTERN,
+				getTrackTitle(track));
 
-			provider = provider.replace(MirroringAudioSourceManager.QUERY_PATTERN, getTrackTitle(mirroringAudioTrack));
-			if (soundCloudMirrorSearch && !ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.add(provider)) {
-				log.debug("Skipping nested SoundCloud mirror search to prevent a preview-only result from recursing.");
+			// ---- Cycle guard 1: per-resolution provider-key deduplication ----
+			String rawProviderKey = provider + "=" + effectiveProvider;
+			if (ctx.hasProviderBeenAttempted(rawProviderKey)) {
+				log.debug("[Mirror] Skipping duplicate provider '{}' within resolution {}.", effectiveProvider, ctx.correlationId);
 				continue;
 			}
-			log.debug("Attempting mirror resolution with provider \"{}\" for track \"{}\".", provider, mirroringAudioTrack.getInfo().title);
+			ctx.markProviderAttempted(rawProviderKey);
+
+			// ---- Cycle guard 2: SoundCloud global active-search guard ----
+			boolean soundCloudMirrorSearch = "soundcloud".equals(track.getSourceManager().getSourceName())
+				&& provider.startsWith("scsearch:");
+			if (soundCloudMirrorSearch && !ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.add(effectiveProvider)) {
+				log.debug("[Mirror] Skipping nested SoundCloud mirror search to prevent a preview-only result from recursing.");
+				continue;
+			}
+
+			// ---- Cycle guard 3: track-identity per-resolution dedup ----
+			String sourceName = track.getSourceManager() != null ? track.getSourceManager().getSourceName() : "unknown";
+			String trackKey = sourceName + ":" + (track.getIdentifier() != null ? track.getIdentifier() : "");
+			if (ctx.hasTrackBeenProcessed(trackKey) && ctx.mirrorDepth > 0) {
+				log.warn("[Mirror] Track '{}' already processed in resolution {}; skipping.", track.getInfo().title, ctx.correlationId);
+				continue;
+			}
+			ctx.markTrackProcessed(trackKey);
+
+			log.debug("[Mirror] [depth {}/{}] Attempting provider '{}' for '{}' (cid:{}).",
+				ctx.mirrorDepth, ctx.maxMirrorDepth, effectiveProvider,
+				track.getInfo().title, ctx.correlationId);
 
 			AudioItem item;
 			try {
-				item = mirroringAudioTrack.loadItem(provider);
+				item = track.loadItem(effectiveProvider);
 			} catch (Exception e) {
-				log.error("Failed to load track from provider \"{}\"!", provider, e);
+				log.warn("[Mirror] Provider '{}' load failed for '{}' (ctx:{}): {}.",
+					effectiveProvider, track.getInfo().title, ctx.correlationId, e.getMessage());
 				continue;
 			} finally {
-				if (soundCloudMirrorSearch) ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.remove(provider);
+				if (soundCloudMirrorSearch) ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES.remove(effectiveProvider);
 			}
-			// If the track is an empty playlist, skip the provider
-			if (item instanceof AudioPlaylist && ((AudioPlaylist) item).getTracks().isEmpty() || item == AudioReference.NO_TRACK) {
-				log.debug("Provider \"{}\" did not produce a playable mirror result.", provider);
+
+			if (item instanceof AudioPlaylist && ((AudioPlaylist) item).getTracks().isEmpty()
+				|| item == AudioReference.NO_TRACK) {
+				log.debug("[Mirror] Provider '{}' produced no playable result.", effectiveProvider);
 				continue;
 			}
-			log.debug("Resolved mirror track via provider \"{}\".", provider);
+
+			log.debug("[Mirror] Resolved mirror track via provider '{}' (cid:{}).",
+				effectiveProvider, ctx.correlationId);
 			return item;
 		}
 
-		log.debug("No mirror providers produced a playable result for track \"{}\".", mirroringAudioTrack.getInfo().title);
+		log.debug("[Mirror] No mirror providers produced a playable result for '{}'.",
+			track.getInfo().title);
 		return AudioReference.NO_TRACK;
 	}
 
-	public String getTrackTitle(MirroringAudioTrack mirroringAudioTrack) {
-		var query = mirroringAudioTrack.getInfo().title;
-		if (!mirroringAudioTrack.getInfo().author.equals("unknown")) {
-			query += " " + mirroringAudioTrack.getInfo().author;
+	public String getTrackTitle(MirroringAudioTrack track) {
+		var query = track.getInfo().title;
+		if (track.getInfo().author != null && !track.getInfo().author.equals("unknown")) {
+			query += " " + track.getInfo().author;
 		}
 		return query;
 	}

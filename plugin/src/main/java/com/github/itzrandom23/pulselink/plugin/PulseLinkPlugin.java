@@ -19,7 +19,7 @@ import com.github.itzrandom23.pulselink.plugin.config.*;
 import com.github.itzrandom23.pulselink.plugin.service.ProxyConfigurationService;
 import com.github.itzrandom23.pulselink.protocol.Config;
 import com.github.itzrandom23.pulselink.qobuz.QobuzAudioSourceManager;
-import com.github.itzrandom23.pulselink.shazam.ShazamAudioSourceManager;
+
 import com.github.itzrandom23.pulselink.soundcloud.SoundCloudAudioSourceManager;
 import com.github.itzrandom23.pulselink.spotify.SpotifySourceManager;
 import com.github.itzrandom23.pulselink.tidal.TidalSourceManager;
@@ -61,7 +61,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private AudiomackAudioSourceManager audiomack;
 	private GaanaAudioSourceManager gaana;
 	private SoundCloudAudioSourceManager soundcloud;
-	private ShazamAudioSourceManager shazam;
+	
 	private PandoraSourceManager pandora;
 	private LrcLibLyricsManager lrcLib;
 
@@ -249,12 +249,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			);
 		}
 
-		if (sourcesConfig.isShazam()) {
-			this.shazam = new ShazamAudioSourceManager(
-				pluginConfig.getProviders(),
-				unused -> this.manager
-			);
-		}
+
 
 		if (sourcesConfig.isPandora()) {
 			this.pandora = new PandoraSourceManager(
@@ -295,7 +290,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		registerAudioSource("Audiomack", this.audiomack, this.sourcesConfig.isAudiomack(), () -> manager.registerSourceManager(this.audiomack));
 		registerAudioSource("Gaana", this.gaana, this.sourcesConfig.isGaana(), () -> manager.registerSourceManager(this.gaana));
 		registerAudioSource("SoundCloud", this.soundcloud, this.sourcesConfig.isSoundcloud(), () -> manager.registerSourceManager(this.soundcloud));
-		registerAudioSource("Shazam", this.shazam, this.sourcesConfig.isShazam(), () -> manager.registerSourceManager(this.shazam));
+		
 		registerAudioSource("Pandora", this.pandora, this.sourcesConfig.isPandora(), () -> manager.registerSourceManager(this.pandora));
 		return manager;
 	}
@@ -313,7 +308,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		registerSearchSource("JioSaavn", this.jioSaavn, this.sourcesConfig.isJiosaavn(), () -> manager.registerSearchManager(this.jioSaavn));
 		registerSearchSource("Audiomack", this.audiomack, this.sourcesConfig.isAudiomack(), () -> manager.registerSearchManager(this.audiomack));
 		registerSearchSource("SoundCloud", this.soundcloud, this.sourcesConfig.isSoundcloud(), () -> manager.registerSearchManager(this.soundcloud));
-		registerSearchSource("Shazam", this.shazam, this.sourcesConfig.isShazam(), () -> manager.registerSearchManager(this.shazam));
+		
 		registerSearchSource("Pandora", this.pandora, this.sourcesConfig.isPandora(), () -> manager.registerSearchManager(this.pandora));
 		return manager;
 	}

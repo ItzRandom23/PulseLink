@@ -78,8 +78,26 @@ public class SoundCloudAudioTrack extends MirroringAudioTrack {
 	}
 
 	private void processMirror(LocalAudioTrackExecutor executor, String reason) throws Exception {
+		if (this.resolutionContext == null) {
+			this.resolutionContext = new com.github.itzrandom23.pulselink.mirror.MirrorResolutionContext(
+				this.sourceManager.getSourceName(),
+				this.getIdentifier()
+			);
+		}
+		var ctx = this.resolutionContext;
+		if (ctx.isDeadlineExceeded()) {
+			throw new FriendlyException("SoundCloud mirror resolution deadline exceeded.",
+				FriendlyException.Severity.COMMON, new java.util.concurrent.TimeoutException(reason));
+		}
+		if (!ctx.pushMirror(this.sourceManager.getSourceName(), this.getIdentifier())) {
+			throw new FriendlyException(
+				"SoundCloud mirror depth exceeded (tried " + ctx.mirrorDepth + " mirrors for " + ctx.originalProvider + " track).",
+				FriendlyException.Severity.COMMON,
+				new IllegalStateException(reason)
+			);
+		}
 		try {
-			super.process(executor);
+			super.processWithContext(executor, ctx);
 		} catch (Exception exception) {
 			throw new FriendlyException(
 				"SoundCloud stream is not available and no mirror provider could play this track.",

@@ -6,7 +6,6 @@ plugins:
       - jssearch:%QUERY%
       - gnsearch:%QUERY%
       - admsearch:%QUERY%
-      - bcsearch:%QUERY%
       - scsearch:%QUERY%
     sources:
       spotify: true
