@@ -20,7 +20,6 @@ plugins:
       jiosaavn: false
       audiomack: false
       gaana: false
-      shazam: false
       pandora: false
       flowerytts: false
       youtube: false

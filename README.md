@@ -59,14 +59,13 @@ Playback modes:
 | Audiomack | Direct | Uses built-in web credentials; `consumerKey` and `consumerSecret` can be overridden. |
 | Gaana | Direct | No credentials required. |
 | SoundCloud | Direct / Mirror fallback | No credentials required. Supports tracks, sets/playlists, user pages, `m.soundcloud.com`, `on.soundcloud.com`, and `snd.sc` links. Full SoundCloud results can be selected as mirrors; preview-only results proceed to the next provider. |
-| Shazam | Mirror | Resolves searches plus exact `/song`, `/artist`, and `/album` links through Shazam's US Apple Music catalog API. Returned tracks retain Shazam metadata and URIs; configured providers supply playback. `/track` links intentionally return no match. |
 | Pandora | Mirror | Uses the built-in remote token provider; `remoteTokenUrl`, `csrfToken`, or `authToken` can override it. |
 | yt-dlp | Direct | Requires `yt-dlp` installed. |
 | FloweryTTS | Direct | No credentials required. |
 | YouTube | Search / Lyrics | Requires the new YouTube source plugin. |
 
 Credentials and external requirements:
-- No credentials required: Spotify, Amazon Music, Shazam, Pandora, Gaana, SoundCloud, FloweryTTS
+- No credentials required: Spotify, Amazon Music, Pandora, Gaana, SoundCloud, FloweryTTS
 - Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the anonymous token endpoint. By default that token endpoint is `http://140.245.242.153:8082/api/token`; override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`, Qobuz `userOauthToken`
@@ -86,7 +85,6 @@ Supported search prefixes:
 - Audiomack: `admsearch:query`
 - Gaana: `gnsearch:query`
 - SoundCloud: `scsearch:query`
-- Shazam: `szsearch:query`
 - Pandora: `pdsearch:query`
 - yt-dlp: `ytsearch:query`
 - YouTube Music autocomplete/search: `ytmsearch:query`
