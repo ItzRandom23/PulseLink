@@ -234,10 +234,48 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 			);
 		}
 		if ("user".equalsIgnoreCase(kind)) {
+			if (isLikesUrl(resolvedSoundCloudUrl)) return resolveLikes(data, resolvedSoundCloudUrl);
 			return resolveUser(data, resolvedSoundCloudUrl);
 		}
 
 		return AudioReference.NO_TRACK;
+	}
+
+	private boolean isLikesUrl(String url) {
+		try {
+			return URI.create(url).getPath().matches("/[^/]+/likes/?");
+		} catch (IllegalArgumentException exception) {
+			return false;
+		}
+	}
+
+	private AudioItem resolveLikes(JsonBrowser user, String originalUrl) throws IOException {
+		String userId = getText(user, "id");
+		if (userId == null) return AudioReference.NO_TRACK;
+		int limit = Math.max(1, this.config.getUserTrackLimit());
+		String next = BASE_URL + "/users/" + encode(userId) + "/track_likes?client_id=" + encode(getClientId())
+			+ "&limit=" + Math.min(limit, 200) + "&linked_partitioning=1";
+		List<JsonBrowser> entries = new ArrayList<>();
+		Set<String> visited = new LinkedHashSet<>();
+		while (next != null && entries.size() < limit && visited.add(next)) {
+			JsonBrowser page = getJson(next);
+			if (page == null || page.isNull()) break;
+			List<JsonBrowser> collection = page.get("collection").values();
+			if (collection.isEmpty()) break;
+			for (JsonBrowser entry : collection) {
+				JsonBrowser track = entry.get("track");
+				if (!track.isNull()) entries.add(track);
+				if (entries.size() >= limit) break;
+			}
+			String candidate = getText(page, "next_href");
+			// Pagination must stay on SoundCloud's API, not an arbitrary host.
+			next = candidate != null && candidate.startsWith(BASE_URL + "/") ? candidate : null;
+		}
+		List<AudioTrack> tracks = parseTracks(entries);
+		if (tracks.isEmpty()) return AudioReference.NO_TRACK;
+		String username = orDefault(getText(user, "username"), "SoundCloud User");
+		return new ExtendedAudioPlaylist(username + " Likes", tracks, ExtendedAudioPlaylist.Type.PLAYLIST,
+			originalUrl, artwork(getText(user, "avatar_url")), username, tracks.size());
 	}
 
 	private AudioItem resolveUser(JsonBrowser user, String originalUrl) throws IOException {
@@ -247,7 +285,9 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		}
 
 		String url = BASE_URL + "/users/" + encode(userId) + "/tracks?client_id=" + encode(getClientId()) + "&limit=" + Math.max(1, this.config.getUserTrackLimit());
-		List<AudioTrack> tracks = parseTracks(getJson(url));
+		JsonBrowser response = getJson(url);
+		JsonBrowser collection = response != null ? response.get("collection") : null;
+		List<AudioTrack> tracks = parseTracks(collection != null && !collection.isNull() ? collection : response);
 		if (tracks.isEmpty()) {
 			return AudioReference.NO_TRACK;
 		}
@@ -266,9 +306,13 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		if (list == null || list.isNull()) {
 			return Collections.emptyList();
 		}
+		return parseTracks(list.values());
+	}
+
+	private List<AudioTrack> parseTracks(List<JsonBrowser> list) throws IOException {
 
 		List<String> missingIds = new ArrayList<>();
-		for (JsonBrowser item : list.values()) {
+		for (JsonBrowser item : list) {
 			String id = getText(item, "id");
 			if (id != null && getText(item, "title") == null) missingIds.add(id);
 		}
@@ -283,7 +327,7 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 			}
 		}
 		List<AudioTrack> tracks = new ArrayList<>();
-		for (JsonBrowser original : list.values()) {
+		for (JsonBrowser original : list) {
 			JsonBrowser item = getText(original, "title") != null
 				? original : hydrated.get(getText(original, "id"));
 			AudioTrack track = parseTrack(item);
