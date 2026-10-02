@@ -270,6 +270,13 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 			String candidate = getText(page, "next_href");
 			// Pagination must stay on SoundCloud's API, not an arbitrary host.
 			next = candidate != null && candidate.startsWith(BASE_URL + "/") ? candidate : null;
+			if (next != null) {
+				String previousId = queryClientId(next);
+				String currentId = encode(getClientId());
+				next = previousId != null
+					? next.replace("client_id=" + previousId, "client_id=" + currentId)
+					: next + (next.contains("?") ? "&" : "?") + "client_id=" + currentId;
+			}
 		}
 		List<AudioTrack> tracks = parseTracks(entries);
 		if (tracks.isEmpty()) return AudioReference.NO_TRACK;
