@@ -1,5 +1,8 @@
 jdk:
   - openjdk17
 
+before_install:
+  - git config --global --add safe.directory /build
+
 install:
   - ./gradlew :plugin:publishToMavenLocal -x test --no-daemon

@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        // Prefer the cached mirror to reduce Maven Central requests on CI.
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name = "PulseLink"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 

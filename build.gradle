@@ -7,6 +7,7 @@ allprojects {
 
     repositories {
         mavenLocal()
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
         maven { url "https://jitpack.io" }
     }
@@ -16,7 +17,7 @@ subprojects {
     apply plugin: "java"
     apply plugin: "maven-publish"
 
-    def versionStr = "1.7.5"
+    def versionStr = "1.7.6"
     def isSnapshot = false
     version versionStr
     println "Version: " + versionStr
