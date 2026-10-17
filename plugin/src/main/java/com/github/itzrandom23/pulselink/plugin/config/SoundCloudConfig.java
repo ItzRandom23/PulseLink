@@ -11,6 +11,7 @@ public class SoundCloudConfig {
 
 	private int searchLimit = 10;
 	private int userTrackLimit = 25;
+	private String ffmpegPath = "ffmpeg";
 
 	public int getSearchLimit() {
 		return this.searchLimit;
@@ -28,10 +29,21 @@ public class SoundCloudConfig {
 		this.userTrackLimit = userTrackLimit;
 	}
 
+	public String getFfmpegPath() {
+		return this.ffmpegPath;
+	}
+
+	public void setFfmpegPath(String ffmpegPath) {
+		this.ffmpegPath = ffmpegPath;
+	}
+
 	public @NotNull SoundCloudAudioSourceManager.SoundCloudConfig buildConfig() {
 		var config = new SoundCloudAudioSourceManager.SoundCloudConfig();
 		config.setSearchLimit(Math.max(1, this.searchLimit));
 		config.setUserTrackLimit(Math.max(1, this.userTrackLimit));
+		if (this.ffmpegPath != null && !this.ffmpegPath.isBlank()) {
+			config.setFfmpegPath(this.ffmpegPath);
+		}
 		return config;
 	}
 }

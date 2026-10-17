@@ -86,6 +86,8 @@ plugins:
     soundcloud:
       searchLimit: 10
       userTrackLimit: 25
+      # Optional. Defaults to "ffmpeg" from PATH; set an absolute path if needed.
+      ffmpegPath: "ffmpeg"
     pandora:
       csrfToken: ""
       authToken: ""

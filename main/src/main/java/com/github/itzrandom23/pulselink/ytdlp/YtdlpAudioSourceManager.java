@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -207,7 +209,7 @@ public class YtdlpAudioSourceManager extends ExtendedAudioSourceManager implemen
 
 		log.debug("Starting yt-dlp with args: {}", argList);
 		var processBuilder = new ProcessBuilder(argList);
-		processBuilder.redirectErrorStream(true);
+		processBuilder.redirectErrorStream(false);
 
 		try {
 			return processBuilder.start();
@@ -218,18 +220,35 @@ public class YtdlpAudioSourceManager extends ExtendedAudioSourceManager implemen
 	}
 
 	JsonBrowser getProcessJsonOutput(Process process) throws IOException {
+		// yt-dlp diagnostics belong to stderr, even when --no-warnings is used.
+		// Drain concurrently so a full stderr pipe cannot block JSON output.
+		var diagnostics = new CompletableFuture<String>();
+		var stderrReader = new Thread(() -> {
+			try (var stderr = process.getErrorStream()) {
+				diagnostics.complete(IOUtils.toString(stderr, StandardCharsets.UTF_8));
+			} catch (IOException e) {
+				diagnostics.completeExceptionally(e);
+			}
+		}, "pulselink-ytdlp-stderr");
+		stderrReader.setDaemon(true);
+		stderrReader.start();
 		try (var stream = new BufferedInputStream(process.getInputStream())) {
 			var data = IOUtils.toString(stream, StandardCharsets.UTF_8);
 			log.debug("yt-dlp process output: {}", data);
 			int exitCode;
+			String errors;
 			try {
 				exitCode = process.waitFor();
+				errors = diagnostics.get();
 			} catch (InterruptedException e) {
+				process.destroyForcibly();
 				Thread.currentThread().interrupt();
 				throw new IOException("yt-dlp process was interrupted", e);
+			} catch (ExecutionException e) {
+				throw new IOException("Failed to read yt-dlp diagnostics", e.getCause());
 			}
 			if (exitCode != 0) {
-				throw new RuntimeException("Failed to retrieve item, error: " + data);
+				throw new IOException("yt-dlp exited with code " + exitCode + ": " + errors);
 			}
 			try {
 				return JsonBrowser.parse(data);

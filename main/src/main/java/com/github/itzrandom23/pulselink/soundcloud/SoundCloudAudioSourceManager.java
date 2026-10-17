@@ -195,6 +195,10 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		return this.httpInterfaceManager.getInterface();
 	}
 
+	String getFfmpegPath() {
+		return this.config.getFfmpegPath();
+	}
+
 	private AudioItem getSearch(String query) throws IOException {
 		String url = BASE_URL + "/search/tracks?q=" + encode(query) + "&client_id=" + encode(getClientId()) + "&limit=" + Math.max(1, this.config.getSearchLimit());
 		JsonBrowser json = getJson(url);
@@ -755,6 +759,18 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 	public static class SoundCloudConfig {
 		private int searchLimit = 10;
 		private int userTrackLimit = 25;
+		private String ffmpegPath = "ffmpeg";
+
+		public String getFfmpegPath() {
+			return this.ffmpegPath;
+		}
+
+		public void setFfmpegPath(String ffmpegPath) {
+			if (ffmpegPath == null || ffmpegPath.isBlank()) {
+				throw new IllegalArgumentException("ffmpegPath must not be blank");
+			}
+			this.ffmpegPath = ffmpegPath;
+		}
 
 		public int getSearchLimit() {
 			return this.searchLimit;

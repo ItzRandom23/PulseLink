@@ -1,10 +1,7 @@
 package com.github.itzrandom23.pulselink.soundcloud;
 
-import com.github.itzrandom23.pulselink.ExtendedAudioTrack;
 import com.github.itzrandom23.pulselink.mirror.MirroringAudioTrack;
 import com.sedmelluq.discord.lavaplayer.container.mp3.Mp3AudioTrack;
-import com.sedmelluq.discord.lavaplayer.container.mpeg.MpegAudioTrack;
-import com.sedmelluq.discord.lavaplayer.container.mpegts.MpegAdtsAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
@@ -14,14 +11,9 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.InternalAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.client.methods.CloseableHttpResponse;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.util.List;
 
 public class SoundCloudAudioTrack extends MirroringAudioTrack {
 
@@ -56,25 +48,49 @@ public class SoundCloudAudioTrack extends MirroringAudioTrack {
 			}
 
 			if (streamInfo.hls()) {
-				List<String> parts = this.sourceManager.resolveHlsParts(httpInterface, streamInfo.streamUrl());
-				if (parts.isEmpty()) {
-					processMirror(executor, "SoundCloud HLS stream returned no playable segments");
-					return;
-				}
-				try (var stream = new SegmentedStream(this.sourceManager, parts)) {
-					processDelegate(new MpegAdtsAudioTrack(this.trackInfo, stream), executor);
-				}
+				processWithFfmpegOrMirror(executor, streamInfo.streamUrl());
+				return;
+			}
+
+			String codec = streamInfo.codec();
+			String mimeType = streamInfo.mimeType();
+			boolean isMp3 = "MP3".equalsIgnoreCase(codec)
+				|| ((codec == null || codec.isBlank()) && mimeType != null
+					&& mimeType.toLowerCase(java.util.Locale.ROOT).contains("mpeg"));
+			if (!isMp3) {
+				processWithFfmpegOrMirror(executor, streamInfo.streamUrl());
 				return;
 			}
 
 			try (var stream = new PersistentHttpStream(httpInterface, new URI(streamInfo.streamUrl()), this.trackInfo.length)) {
-				if ("MP3".equalsIgnoreCase(streamInfo.codec()) || (streamInfo.mimeType() != null && streamInfo.mimeType().toLowerCase().contains("mpeg"))) {
-					processDelegate(new Mp3AudioTrack(this.trackInfo, stream), executor);
-				} else {
-					processDelegate(new MpegAudioTrack(this.trackInfo, stream), executor);
-				}
+				processDelegate(new Mp3AudioTrack(this.trackInfo, stream), executor);
 			}
 		}
+	}
+
+	private void processWithFfmpegOrMirror(LocalAudioTrackExecutor executor, String streamUrl) throws Exception {
+		try {
+			processDelegate(new FfmpegPcmAudioTrack(
+				this.trackInfo,
+				this.sourceManager.getFfmpegPath(),
+				streamUrl
+			), executor);
+		} catch (Exception exception) {
+			if (!isUnsupportedSampleAes(exception)) {
+				throw exception;
+			}
+			processMirror(executor, "SoundCloud returned SAMPLE-AES encrypted fMP4, which FFmpeg cannot decode");
+		}
+	}
+
+	private boolean isUnsupportedSampleAes(Throwable failure) {
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			String message = cause.getMessage();
+			if (message != null && message.contains("SAMPLE-AES encryption is not supported yet")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void processMirror(LocalAudioTrackExecutor executor, String reason) throws Exception {
@@ -126,85 +142,4 @@ public class SoundCloudAudioTrack extends MirroringAudioTrack {
 		return this.sourceManager;
 	}
 
-	private static final class SegmentedStream extends InputStream {
-		private static final int MAX_RETRIES = 3;
-
-		private final SoundCloudAudioSourceManager sourceManager;
-		private final List<String> parts;
-		private int nextPartIndex;
-		private byte[] currentPart;
-		private int currentOffset;
-
-		private SegmentedStream(SoundCloudAudioSourceManager sourceManager, List<String> parts) {
-			this.sourceManager = sourceManager;
-			this.parts = parts;
-		}
-
-		@Override
-		public int read() throws IOException {
-			byte[] one = new byte[1];
-			int read = read(one, 0, 1);
-			return read == -1 ? -1 : one[0] & 0xFF;
-		}
-
-		@Override
-		public int read(byte[] b, int off, int len) throws IOException {
-			while (this.currentPart == null || this.currentOffset >= this.currentPart.length) {
-				if (!openNextPart()) {
-					return -1;
-				}
-			}
-
-			int remaining = this.currentPart.length - this.currentOffset;
-			int toCopy = Math.min(len, remaining);
-			System.arraycopy(this.currentPart, this.currentOffset, b, off, toCopy);
-			this.currentOffset += toCopy;
-			return toCopy;
-		}
-
-		private boolean openNextPart() throws IOException {
-			if (this.nextPartIndex >= this.parts.size()) {
-				return false;
-			}
-			String url = this.parts.get(this.nextPartIndex++);
-			this.currentPart = downloadPart(url);
-			this.currentOffset = 0;
-			return this.currentPart.length > 0;
-		}
-
-		private byte[] downloadPart(String url) throws IOException {
-			IOException lastError = null;
-			for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-				try (HttpInterface httpInterface = this.sourceManager.getHttpInterface()) {
-					try (CloseableHttpResponse response = httpInterface.execute(this.sourceManager.createRequest(url))) {
-						int status = response.getStatusLine().getStatusCode();
-						if (status != 200) {
-							throw new IOException("Failed to fetch SoundCloud segment, status " + status);
-						}
-						try (InputStream input = response.getEntity().getContent()) {
-							ByteArrayOutputStream output = new ByteArrayOutputStream(131072);
-							IOUtils.copy(input, output);
-							byte[] data = output.toByteArray();
-							if (data.length == 0) {
-								throw new IOException("SoundCloud segment returned no data");
-							}
-							return data;
-						}
-					}
-				} catch (IOException e) {
-					lastError = e;
-					if (attempt == MAX_RETRIES) {
-						break;
-					}
-					try {
-						Thread.sleep(250L * attempt);
-					} catch (InterruptedException interrupted) {
-						Thread.currentThread().interrupt();
-						throw new IOException("Interrupted while retrying SoundCloud segment fetch", interrupted);
-					}
-				}
-			}
-			throw lastError != null ? lastError : new IOException("Failed to fetch SoundCloud segment");
-		}
-	}
 }
