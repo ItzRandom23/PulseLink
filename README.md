@@ -10,7 +10,7 @@ Amazon Music, Qobuz, and YouTube integrations (including yt-dlp) have been remov
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.8.0"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.8.1"
     repository: "https://jitpack.io"
     snapshot: false
 ```
