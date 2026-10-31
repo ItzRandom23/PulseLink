@@ -2,11 +2,6 @@ name: Build Image
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ '**' ]
-    paths:
-      - 'docker/**'
-      - '.github/workflows/docker.yml'
 
 jobs:
   check-upstream:
