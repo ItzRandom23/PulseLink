@@ -26,10 +26,10 @@ plugins:
       # Free plain and synchronized lyrics from LRCLIB.
       lrcLib: true
     spotify:
-      # Optional. Defaults to http://140.245.242.153:8081
-      apiUrl: "http://140.245.242.153:8081"
-      # Optional. Defaults to http://140.245.242.153:8082/api/token ( For sprec:mix )
-      anonymousTokenUrl: "http://140.245.242.153:8082/api/token"
+      # Configure your migrated Spotify resolver before using Spotify search and playback.
+      apiUrl: ""
+      # Only required for Spotify mix fallback requests.
+      anonymousTokenUrl: ""
       countryCode: "US"
       playlistLoadLimit: 6
       albumLoadLimit: 6

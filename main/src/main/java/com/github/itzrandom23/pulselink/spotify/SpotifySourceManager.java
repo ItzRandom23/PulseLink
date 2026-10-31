@@ -46,19 +46,17 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     public static final String PREVIEW_PREFIX = "spprev:";
     public static final long PREVIEW_LENGTH = 30000;
     public static final String CLIENT_API_BASE = "https://spclient.wg.spotify.com/";
-    public static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://140.245.242.153:8082/api/token";
     public static final String SHARE_URL = "https://spotify.link/";
     public static final int PLAYLIST_MAX_PAGE_ITEMS = 100;
     public static final int ALBUM_MAX_PAGE_ITEMS = 50;
-    private static final String DEFAULT_RESOLVER = "http://140.245.242.153:8081";
     public static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.ALBUM,
             AudioSearchResult.Type.ARTIST, AudioSearchResult.Type.PLAYLIST, AudioSearchResult.Type.TRACK);
     private static final Logger log = LoggerFactory.getLogger(SpotifySourceManager.class);
 
     private final HttpInterfaceManager httpInterfaceManager = HttpClientTools.createDefaultThreadLocalManager();
     private final String countryCode;
-    private String resolver = DEFAULT_RESOLVER;
-    private String anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;
+    private String resolver;
+    private String anonymousTokenUrl;
     private volatile String anonymousAccessToken;
     private volatile long anonymousAccessTokenExpirationMs;
     private int playlistPageLimit = 6;
@@ -128,25 +126,22 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     }
 
     public void setApiUrl(String apiUrl) {
-        if (apiUrl == null || apiUrl.isBlank()) {
-            this.resolver = DEFAULT_RESOLVER;
-            return;
-        }
-
-        this.resolver = apiUrl;
+        this.resolver = apiUrl == null || apiUrl.isBlank() ? null : apiUrl;
     }
 
     public void setAnonymousTokenUrl(String anonymousTokenUrl) {
-        if (anonymousTokenUrl == null || anonymousTokenUrl.isBlank()) {
-            this.anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;
-            this.anonymousAccessToken = null;
-            this.anonymousAccessTokenExpirationMs = 0;
-            return;
-        }
-
-        this.anonymousTokenUrl = anonymousTokenUrl;
+        this.anonymousTokenUrl = anonymousTokenUrl == null || anonymousTokenUrl.isBlank()
+                ? null
+                : anonymousTokenUrl;
         this.anonymousAccessToken = null;
         this.anonymousAccessTokenExpirationMs = 0;
+    }
+
+    private String requireResolver() throws IOException {
+        if (this.resolver == null || this.resolver.isBlank()) {
+            throw new IOException("Spotify resolver is not configured. Set plugins.pulselink.spotify.apiUrl.");
+        }
+        return this.resolver;
     }
 
     @NotNull
@@ -182,7 +177,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                     StandardCharsets.UTF_8);
 
             var request = new HttpGet(
-                    this.resolver + "/api/search?q=" + q);
+                    this.requireResolver() + "/api/search?q=" + q);
 
             var json = PulseLinkTools.fetchResponseAsJson(
                     this.httpInterfaceManager.getInterface(),
@@ -252,7 +247,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 var encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
 
                 var request = new HttpGet(
-                        this.resolver + "/api/search?q=" + encoded);
+                        this.requireResolver() + "/api/search?q=" + encoded);
 
                 var json = PulseLinkTools.fetchResponseAsJson(
                         this.httpInterfaceManager.getInterface(),
@@ -381,7 +376,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
         var encoded = URLEncoder.encode(identifier, StandardCharsets.UTF_8);
 
         var request = new HttpGet(
-                this.resolver + "/api/resolve?url=" + encoded);
+                this.requireResolver() + "/api/resolve?url=" + encoded);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),
@@ -416,7 +411,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
 
     private AudioItem getResolverRecommendations(String spotifyUrl, int limit) throws IOException {
         var encoded = URLEncoder.encode(spotifyUrl, StandardCharsets.UTF_8);
-        var endpoint = this.resolver + "/api/recommendations?url=" + encoded;
+        var endpoint = this.requireResolver() + "/api/recommendations?url=" + encoded;
         if (limit > 0) endpoint += "&limit=" + limit;
 
         var request = new HttpGet(endpoint);
@@ -536,6 +531,10 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
                 return this.anonymousAccessToken;
             }
 
+            if (this.anonymousTokenUrl == null || this.anonymousTokenUrl.isBlank()) {
+                throw new IOException("Spotify anonymous token endpoint is not configured. Set plugins.pulselink.spotify.anonymousTokenUrl.");
+            }
+
             var tokenRequest = new HttpGet(this.anonymousTokenUrl);
             var tokenJson = PulseLinkTools.fetchResponseAsJson(
                     this.httpInterfaceManager.getInterface(),
@@ -626,7 +625,7 @@ public class SpotifySourceManager extends MirroringAudioSourceManager
     private AudioItem resolveArtist(String id) throws IOException {
 
         var request = new HttpGet(
-                this.resolver + "/api/artist-top-tracks?id=" + id);
+                this.requireResolver() + "/api/artist-top-tracks?id=" + id);
 
         var json = PulseLinkTools.fetchResponseAsJson(
                 this.httpInterfaceManager.getInterface(),

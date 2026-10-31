@@ -41,7 +41,7 @@ The Lavalink lyrics endpoint is provided by the [LavaLyrics plugin](https://gith
 
 PulseLink mirrors playback for services that do not stream directly.
 
-When a track is requested, PulseLink builds a provider query using the track ISRC if available, then falls back to a title/artist query. Configure the fallback order with `plugins.pulselink.providers`.
+When a track is requested, PulseLink builds a provider query using the track ISRC if available, then falls back to a title/artist query. Configure the fallback order with `plugins.pulselink.providers`. There is no implicit YouTube fallback; YouTube, yt-dlp, Amazon Music, and Qobuz provider entries are ignored.
 
 Playback modes:
 - Mirror: metadata only, audio comes from your configured providers.
@@ -49,7 +49,7 @@ Playback modes:
 
 | Source | Access | Notes |
 |--------|--------|-------|
-| Spotify | Mirror | `apiUrl` and `anonymousTokenUrl` are optional. |
+| Spotify | Mirror | Configure `apiUrl` for search and resolution. `anonymousTokenUrl` is needed for Spotify mix fallback. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
 | Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
@@ -64,7 +64,7 @@ Playback modes:
 
 Credentials and external requirements:
 - No credentials required: Spotify, Pandora, Gaana, SoundCloud, FloweryTTS
-- Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the anonymous token endpoint. By default that token endpoint is `http://140.245.242.153:8082/api/token`; override it with `plugins.pulselink.spotify.anonymousTokenUrl`.
+- Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the configured anonymous token endpoint. PulseLink has no built-in Spotify resolver or token endpoint; these URLs must be supplied in `plugins.pulselink.spotify.apiUrl` and `plugins.pulselink.spotify.anonymousTokenUrl`.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
 

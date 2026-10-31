@@ -8,6 +8,9 @@ import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,15 +26,25 @@ public class DefaultMirroringAudioTrackResolver implements MirroringAudioTrackRe
 	 */
 	private static final Set<String> ACTIVE_SOUNDCLOUD_MIRROR_SEARCHES = ConcurrentHashMap.newKeySet();
 
-	private String[] providers = {
-		"ytsearch:\"" + MirroringAudioSourceManager.ISRC_PATTERN + "\"",
-		"ytsearch:" + MirroringAudioSourceManager.QUERY_PATTERN
-	};
+	private String[] providers = new String[0];
 
 	public DefaultMirroringAudioTrackResolver(String[] providers) {
-		if (providers != null && providers.length > 0) {
-			this.providers = providers;
-		}
+		this.providers = providers == null ? new String[0] : Arrays.stream(providers)
+			.filter(Objects::nonNull)
+			.filter(provider -> !isRemovedProvider(provider))
+			.toArray(String[]::new);
+	}
+
+	private static boolean isRemovedProvider(String provider) {
+		var normalized = provider.toLowerCase(Locale.ROOT).trim();
+		return normalized.startsWith("ytsearch")
+			|| normalized.contains("youtube")
+			|| normalized.contains("youtu.be")
+			|| normalized.contains("yt-dlp")
+			|| normalized.contains("ytdlp")
+			|| normalized.contains("ytdlb")
+			|| normalized.contains("amazon")
+			|| normalized.contains("qobuz");
 	}
 
 	@Override

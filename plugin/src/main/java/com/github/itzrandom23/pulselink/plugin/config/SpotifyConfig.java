@@ -7,10 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpotifyConfig {
 
-    private static final String DEFAULT_ANONYMOUS_TOKEN_URL = "http://140.245.242.153:8082/api/token";
-
     private String apiUrl;
-    private String anonymousTokenUrl = DEFAULT_ANONYMOUS_TOKEN_URL;
+    private String anonymousTokenUrl;
     private String countryCode = "US";
     private int playlistLoadLimit = 6;
     private int albumLoadLimit = 6;
@@ -30,8 +28,8 @@ public class SpotifyConfig {
     }
 
     public void setAnonymousTokenUrl(String anonymousTokenUrl) {
-        this.anonymousTokenUrl = (anonymousTokenUrl == null || anonymousTokenUrl.isBlank())
-            ? DEFAULT_ANONYMOUS_TOKEN_URL
+        this.anonymousTokenUrl = anonymousTokenUrl == null || anonymousTokenUrl.isBlank()
+            ? null
             : anonymousTokenUrl;
     }
 

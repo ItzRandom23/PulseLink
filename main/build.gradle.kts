@@ -24,9 +24,6 @@ dependencies {
     implementation("com.auth0:java-jwt:4.4.0")
     compileOnly("org.slf4j:slf4j-api:2.0.7")
 
-    lyricsDependency("protocol")
-    lyricsDependency("client")
-
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.mockito:mockito-core:5.12.0")
@@ -54,10 +51,4 @@ tasks.withType<Javadoc>().configureEach {
 
 tasks.matching { it.name == "javadocJar" }.configureEach {
     enabled = false
-}
-
-fun DependencyHandlerScope.lyricsDependency(module: String) {
-    implementation("dev.schlaubi.lyrics", "$module-jvm", "2.5.0") {
-        isTransitive = false
-    }
 }
