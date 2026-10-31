@@ -9,23 +9,18 @@ plugins:
       - scsearch:%QUERY%
     sources:
       spotify: true
-      amazonmusic: false
       applemusic: false
       deezer: false
       yandexmusic: false
       vkmusic: false
       tidal: false
-      qobuz: false
-      ytdlp: false
       jiosaavn: false
       audiomack: false
       gaana: false
       pandora: false
       flowerytts: false
-      youtube: false
     lyrics-sources:
       deezer: false
-      youtube: false
       yandexmusic: false
       vkmusic: false
       # Free plain and synchronized lyrics from LRCLIB.
@@ -40,9 +35,6 @@ plugins:
       albumLoadLimit: 6
       resolveArtistsInSearch: true
       localFiles: false
-    amazonmusic:
-      # Optional. 0-10
-      searchLimit: 10
     applemusic:
       countryCode: "US"
       # Optional. Apple Music playback can work without this token.
@@ -71,9 +63,6 @@ plugins:
         - "https://hifi-two.spotisaver.net"
       # Optional: order of qualities to try for direct streaming
       hifiQualities: [ "HI_RES_LOSSLESS", "LOSSLESS", "HIGH", "LOW" ]
-    ytdlp:
-      path: "yt-dlp"
-      searchLimit: 10
     audiomack:
       searchLimit: 10
       artistTrackLimit: 25

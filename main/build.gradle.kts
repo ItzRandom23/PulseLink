@@ -17,7 +17,6 @@ dependencies {
     api("com.github.topi314.lavasearch:lavasearch:1.0.0")
     api("com.github.topi314.lavalyrics:lavalyrics:1.0.0")
     compileOnly("dev.arbjerg:lavaplayer:2.0.4")
-    compileOnly("com.github.lavalink-devs.youtube-source:common:1.0.5")
     implementation("org.jsoup:jsoup:1.15.3")
     implementation("commons-io:commons-io:2.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")

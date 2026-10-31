@@ -9,16 +9,12 @@ import org.springframework.stereotype.Component;
 public class SourcesConfig {
 
 	private boolean spotify = false;
-	private boolean amazonMusic = false;
 	private boolean appleMusic = false;
 	private boolean deezer = false;
 	private boolean yandexMusic = false;
 	private boolean floweryTTS = false;
-	private boolean youtube = false;
 	private boolean vkMusic = false;
-	private boolean qobuz = false;
 	private boolean tidal = false;
-	private boolean ytdlp = false;
 	private boolean jiosaavn = false;
 	private boolean audiomack = false;
 	private boolean gaana = false;
@@ -32,14 +28,6 @@ public class SourcesConfig {
 
 	public void setSpotify(boolean spotify) {
 		this.spotify = spotify;
-	}
-
-	public boolean isAmazonMusic() {
-		return this.amazonMusic;
-	}
-
-	public void setAmazonMusic(boolean amazonMusic) {
-		this.amazonMusic = amazonMusic;
 	}
 
 	public boolean isAppleMusic() {
@@ -74,14 +62,6 @@ public class SourcesConfig {
 		this.floweryTTS = floweryTTS;
 	}
 
-	public boolean isYoutube() {
-		return this.youtube;
-	}
-
-	public void setYoutube(boolean youtube) {
-		this.youtube = youtube;
-	}
-
 	public boolean isVkMusic() {
 		return this.vkMusic;
 	}
@@ -90,28 +70,12 @@ public class SourcesConfig {
 		this.vkMusic = vkMusic;
 	}
 
-	public boolean isQobuz() {
-		return this.qobuz;
-	}
-
-	public void setQobuz(boolean qobuz) {
-		this.qobuz = qobuz;
-	}
-
 	public boolean isTidal() {
 		return this.tidal;
 	}
 
 	public void setTidal(boolean tidal) {
 		this.tidal = tidal;
-	}
-
-	public boolean isYtdlp() {
-		return this.ytdlp;
-	}
-
-	public void setYtdlp(boolean ytdlp) {
-		this.ytdlp = ytdlp;
 	}
 
 	public boolean isJiosaavn() {

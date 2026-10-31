@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 public class LyricsSourcesConfig {
 
 	private boolean deezer = false;
-	private boolean youtube = false;
 	private boolean yandexMusic = false;
 	private boolean vkMusic = false;
 	private boolean lrcLib = false;
@@ -20,14 +19,6 @@ public class LyricsSourcesConfig {
 
 	public void setDeezer(boolean deezer) {
 		this.deezer = deezer;
-	}
-
-	public boolean isYoutube() {
-		return this.youtube;
-	}
-
-	public void setYoutube(boolean youtube) {
-		this.youtube = youtube;
 	}
 
 	public boolean isYandexMusic() {

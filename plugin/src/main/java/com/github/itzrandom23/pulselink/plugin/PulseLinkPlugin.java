@@ -5,7 +5,6 @@ import com.github.topi314.lavalyrics.api.LyricsManagerConfiguration;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasearch.api.SearchManagerConfiguration;
 import com.github.itzrandom23.pulselink.applemusic.AppleMusicSourceManager;
-import com.github.itzrandom23.pulselink.amazonmusic.AmazonMusicSourceManager;
 import com.github.itzrandom23.pulselink.audiomack.AudiomackAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioSourceManager;
 import com.github.itzrandom23.pulselink.deezer.DeezerAudioTrack;
@@ -18,15 +17,12 @@ import com.github.itzrandom23.pulselink.pandora.PandoraSourceManager;
 import com.github.itzrandom23.pulselink.plugin.config.*;
 import com.github.itzrandom23.pulselink.plugin.service.ProxyConfigurationService;
 import com.github.itzrandom23.pulselink.protocol.Config;
-import com.github.itzrandom23.pulselink.qobuz.QobuzAudioSourceManager;
 
 import com.github.itzrandom23.pulselink.soundcloud.SoundCloudAudioSourceManager;
 import com.github.itzrandom23.pulselink.spotify.SpotifySourceManager;
 import com.github.itzrandom23.pulselink.tidal.TidalSourceManager;
 import com.github.itzrandom23.pulselink.vkmusic.VkMusicSourceManager;
 import com.github.itzrandom23.pulselink.yandexmusic.YandexMusicSourceManager;
-import com.github.itzrandom23.pulselink.youtube.YoutubeSearchManager;
-import com.github.itzrandom23.pulselink.ytdlp.YtdlpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import dev.arbjerg.lavalink.api.AudioPlayerManagerConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -47,17 +43,13 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	private final LyricsSourcesConfig lyricsSourcesConfig;
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
-	private AmazonMusicSourceManager amazonMusic;
 	private AppleMusicSourceManager appleMusic;
 	private DeezerAudioSourceManager deezer;
 	private YandexMusicSourceManager yandexMusic;
 	private FloweryTTSSourceManager flowerytts;
-	private YoutubeSearchManager youtube;
 	private VkMusicSourceManager vkMusic;
 	private TidalSourceManager tidal;
 	private JioSaavnAudioSourceManager jioSaavn;
-	private QobuzAudioSourceManager qobuz;
-	private YtdlpAudioSourceManager ytdlp;
 	private AudiomackAudioSourceManager audiomack;
 	private GaanaAudioSourceManager gaana;
 	private SoundCloudAudioSourceManager soundcloud;
@@ -70,16 +62,12 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 		SourcesConfig sourcesConfig,
 		LyricsSourcesConfig lyricsSourcesConfig,
 		SpotifyConfig spotifyConfig,
-		AmazonMusicConfig amazonMusicConfig,
 		AppleMusicConfig appleMusicConfig,
 		DeezerConfig deezerConfig,
 		YandexMusicConfig yandexMusicConfig,
 		FloweryTTSConfig floweryTTSConfig,
-		YouTubeConfig youTubeConfig,
 		VkMusicConfig vkMusicConfig,
 		TidalConfig tidalConfig,
-		QobuzConfig qobuzConfig,
-		YtdlpConfig ytdlpConfig,
 		JioSaavnConfig jioSaavnConfig,
 		AudiomackConfig audiomackConfig,
 		GaanaConfig gaanaConfig,
@@ -112,20 +100,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			if (spotifyConfig.isLocalFiles()) {
 				this.spotify.setLocalFiles(spotifyConfig.isLocalFiles());
 			}
-		}
-
-		if (sourcesConfig.isAmazonMusic()) {
-			this.amazonMusic = new AmazonMusicSourceManager(
-				pluginConfig.getProviders(),
-				unused -> manager
-			);
-			int searchLimit = amazonMusicConfig.getSearchLimit();
-			if (searchLimit < 0) {
-				searchLimit = 0;
-			} else if (searchLimit > 10) {
-				searchLimit = 10;
-			}
-			this.amazonMusic.setSearchLimit(searchLimit);
 		}
 
 		if (sourcesConfig.isAppleMusic()) {
@@ -175,14 +149,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 				this.flowerytts.setAudioFormat(floweryTTSConfig.getAudioFormat());
 			}
 		}
-		if (sourcesConfig.isYoutube() || lyricsSourcesConfig.isYoutube()) {
-			if (hasNewYoutubeSource()) {
-				log.info("Registering Youtube Source audio source manager...");
-				this.youtube = new YoutubeSearchManager(() -> manager, youTubeConfig.getCountryCode(), youTubeConfig.getLanguage());
-			} else {
-				throw new IllegalStateException("Youtube LavaSearch requires the new Youtube Source plugin to be enabled.");
-			}
-		}
 		if (sourcesConfig.isVkMusic() || lyricsSourcesConfig.isVkMusic()) {
 			this.vkMusic = new VkMusicSourceManager(vkMusicConfig.getUserToken());
 			proxyConfigurationService.configure(this.vkMusic, vkMusicConfig.getProxy());
@@ -210,19 +176,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 				this.tidal.setSearchLimit(tidalConfig.getSearchLimit());
 			}
 		}
-		if (sourcesConfig.isQobuz()) {
-			this.qobuz = new QobuzAudioSourceManager(
-				pluginConfig.getProviders(),
-				unused -> this.manager,
-				qobuzConfig.getUserOauthToken(),
-				qobuzConfig.getAppId(),
-				qobuzConfig.getAppSecret()
-			);
-		}
-		if (sourcesConfig.isYtdlp()) {
-			this.ytdlp = new YtdlpAudioSourceManager(ytdlpConfig.getPath(), ytdlpConfig.getSearchLimit(), ytdlpConfig.getCustomLoadArgs(), ytdlpConfig.getCustomPlaybackArgs());
-		}
-
 		if (lyricsSourcesConfig.isLrcLib()) {
 			this.lrcLib = new LrcLibLyricsManager();
 		}
@@ -263,29 +216,17 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 
 	}
 
-	private boolean hasNewYoutubeSource() {
-		try {
-			Class.forName("dev.lavalink.youtube.YoutubeAudioSourceManager");
-			return true;
-		} catch (ClassNotFoundException ignored) {
-			return false;
-		}
-	}
-
 	@NotNull
 	@Override
 	public AudioPlayerManager configure(@NotNull AudioPlayerManager manager) {
 		this.manager = manager;
 		registerAudioSource("Spotify", this.spotify, this.sourcesConfig.isSpotify(), () -> manager.registerSourceManager(this.spotify));
-		registerAudioSource("Amazon Music", this.amazonMusic, this.sourcesConfig.isAmazonMusic(), () -> manager.registerSourceManager(this.amazonMusic));
 		registerAudioSource("Apple Music", this.appleMusic, this.sourcesConfig.isAppleMusic(), () -> manager.registerSourceManager(this.appleMusic));
 		registerAudioSource("Deezer", this.deezer, this.sourcesConfig.isDeezer(), () -> manager.registerSourceManager(this.deezer));
 		registerAudioSource("Yandex Music", this.yandexMusic, this.sourcesConfig.isYandexMusic(), () -> manager.registerSourceManager(this.yandexMusic));
 		registerAudioSource("Flowery TTS", this.flowerytts, this.sourcesConfig.isFloweryTTS(), () -> manager.registerSourceManager(this.flowerytts));
 		registerAudioSource("VK Music", this.vkMusic, this.sourcesConfig.isVkMusic(), () -> manager.registerSourceManager(this.vkMusic));
 		registerAudioSource("Tidal", this.tidal, this.sourcesConfig.isTidal(), () -> manager.registerSourceManager(this.tidal));
-		registerAudioSource("Qobuz", this.qobuz, this.sourcesConfig.isQobuz(), () -> manager.registerSourceManager(this.qobuz));
-		registerAudioSource("YTDLP", this.ytdlp, this.sourcesConfig.isYtdlp(), () -> manager.registerSourceManager(this.ytdlp));
 		registerAudioSource("JioSaavn", this.jioSaavn, this.sourcesConfig.isJiosaavn(), () -> manager.registerSourceManager(this.jioSaavn));
 		registerAudioSource("Audiomack", this.audiomack, this.sourcesConfig.isAudiomack(), () -> manager.registerSourceManager(this.audiomack));
 		registerAudioSource("Gaana", this.gaana, this.sourcesConfig.isGaana(), () -> manager.registerSourceManager(this.gaana));
@@ -299,10 +240,8 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	@NotNull
 	public SearchManager configure(@NotNull SearchManager manager) {
 		registerSearchSource("Spotify", this.spotify, this.sourcesConfig.isSpotify(), () -> manager.registerSearchManager(this.spotify));
-		registerSearchSource("Amazon Music", this.amazonMusic, this.sourcesConfig.isAmazonMusic(), () -> manager.registerSearchManager(this.amazonMusic));
 		registerSearchSource("Apple Music", this.appleMusic, this.sourcesConfig.isAppleMusic(), () -> manager.registerSearchManager(this.appleMusic));
 		registerSearchSource("Deezer", this.deezer, this.sourcesConfig.isDeezer(), () -> manager.registerSearchManager(this.deezer));
-		registerSearchSource("Youtube", this.youtube, this.sourcesConfig.isYoutube(), () -> manager.registerSearchManager(this.youtube));
 		registerSearchSource("Yandex Music", this.yandexMusic, this.sourcesConfig.isYandexMusic(), () -> manager.registerSearchManager(this.yandexMusic));
 		registerSearchSource("VK Music", this.vkMusic, this.sourcesConfig.isVkMusic(), () -> manager.registerSearchManager(this.vkMusic));
 		registerSearchSource("JioSaavn", this.jioSaavn, this.sourcesConfig.isJiosaavn(), () -> manager.registerSearchManager(this.jioSaavn));
@@ -317,7 +256,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 	@Override
 	public LyricsManager configure(@NotNull LyricsManager manager) {
 		registerLyricsSource("Deezer", this.deezer, this.lyricsSourcesConfig.isDeezer(), () -> manager.registerLyricsManager(this.deezer));
-		registerLyricsSource("YouTube", this.youtube, this.lyricsSourcesConfig.isYoutube(), () -> manager.registerLyricsManager(this.youtube));
 		registerLyricsSource("Yandex Music", this.yandexMusic, this.lyricsSourcesConfig.isYandexMusic(), () -> manager.registerLyricsManager(this.yandexMusic));
 		registerLyricsSource("VK Music", this.vkMusic, this.lyricsSourcesConfig.isVkMusic(), () -> manager.registerLyricsManager(this.vkMusic));
 		registerLyricsSource("LRCLIB", this.lrcLib, this.lyricsSourcesConfig.isLrcLib(), () -> manager.registerLyricsManager(this.lrcLib));
@@ -370,33 +308,6 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 			var vkMusicConfig = config.getVkMusic();
 			if (vkMusicConfig != null && this.vkMusic != null && vkMusicConfig.getUserToken() != null) {
 				this.vkMusic.setUserToken(vkMusicConfig.getUserToken());
-			}
-
-			var qobuzConfig = config.getQobuz();
-			if (qobuzConfig != null && this.qobuz != null) {
-				if (qobuzConfig.getUserOauthToken() != null) {
-					this.qobuz.setUserOauthToken(qobuzConfig.getUserOauthToken());
-				}
-				if (qobuzConfig.getAppId() != null && qobuzConfig.getAppSecret() != null) {
-					this.qobuz.setAppId(qobuzConfig.getAppId());
-					this.qobuz.setAppSecret(qobuzConfig.getAppSecret());
-				}
-			}
-
-			var ytdlpConfig = config.getYtdlp();
-			if (ytdlpConfig != null && this.ytdlp != null) {
-				if (ytdlpConfig.getPath() != null) {
-					this.ytdlp.setPath(ytdlpConfig.getPath());
-				}
-				if (ytdlpConfig.getSearchLimit() != null && ytdlpConfig.getSearchLimit() > 0) {
-					this.ytdlp.setSearchLimit(ytdlpConfig.getSearchLimit());
-				}
-				if (ytdlpConfig.getCustomLoadArgs() != null) {
-					this.ytdlp.setCustomLoadArgs(ytdlpConfig.getCustomLoadArgs().toArray(String[]::new));
-				}
-				if (ytdlpConfig.getCustomPlaybackArgs() != null) {
-					this.ytdlp.setCustomPlaybackArgs(ytdlpConfig.getCustomPlaybackArgs().toArray(String[]::new));
-				}
 			}
 
 			var pandoraConfig = config.getPandora();

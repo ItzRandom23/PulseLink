@@ -17,7 +17,7 @@ subprojects {
     apply plugin: "java"
     apply plugin: "maven-publish"
 
-    def versionStr = "1.7.6"
+    def versionStr = "1.8.0"
     def isSnapshot = false
     version versionStr
     println "Version: " + versionStr
