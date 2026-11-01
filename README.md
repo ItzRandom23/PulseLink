@@ -10,7 +10,7 @@ Amazon Music, Qobuz, and YouTube integrations (including yt-dlp) have been remov
 
 ```yaml
 plugins:
-  - dependency: "com.github.ItzRandom23:PulseLink:v1.8.1"
+  - dependency: "com.github.ItzRandom23:PulseLink:v1.8.2"
     repository: "https://jitpack.io"
     snapshot: false
 ```
@@ -49,7 +49,7 @@ Playback modes:
 
 | Source | Access | Notes |
 |--------|--------|-------|
-| Spotify | Mirror | Configure `apiUrl` for search and resolution. `anonymousTokenUrl` is needed for Spotify mix fallback. |
+| Spotify | Mirror | Default resolver URLs are provided for search and resolution. `anonymousTokenUrl` is used for Spotify mix fallback. |
 | Apple Music | Mirror | `mediaAPIToken` is optional. |
 | Tidal | Mirror / Direct | Uses the built-in default token; direct streaming also needs hifi-api. |
 | Deezer | Direct | Requires `arl` and `masterDecryptionKey`. |
@@ -64,7 +64,7 @@ Playback modes:
 
 Credentials and external requirements:
 - No credentials required: Spotify, Pandora, Gaana, SoundCloud, FloweryTTS
-- Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the configured anonymous token endpoint. PulseLink has no built-in Spotify resolver or token endpoint; these URLs must be supplied in `plugins.pulselink.spotify.apiUrl` and `plugins.pulselink.spotify.anonymousTokenUrl`.
+- Spotify track-mix recommendations first request one direct recommendation from the configured Spotify resolver. Album and artist mixes, and track mixes with no direct result, use Spotify's inspired-by mix API, which uses the configured anonymous token endpoint. Default endpoint URLs are included; override them in `plugins.pulselink.spotify.apiUrl` and `plugins.pulselink.spotify.anonymousTokenUrl` if you host your own services.
 - Optional overrides: Apple Music `mediaAPIToken`, Tidal `token` or `appId`/`appSecret`, Audiomack `consumerKey` / `consumerSecret`, JioSaavn `decryption`, Pandora `remoteTokenUrl` / `csrfToken` / `authToken`
 - Required credentials: Deezer `arl` and `masterDecryptionKey`, Yandex Music `accessToken`, VK Music `userToken`
 

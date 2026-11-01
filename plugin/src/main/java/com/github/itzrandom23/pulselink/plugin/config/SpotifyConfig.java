@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class SpotifyConfig {
 
-    private String apiUrl;
-    private String anonymousTokenUrl;
+    private String apiUrl = "http://140.245.249.138:8081";
+    private String anonymousTokenUrl = "http://140.245.249.138:8082/api/token";
     private String countryCode = "US";
     private int playlistLoadLimit = 6;
     private int albumLoadLimit = 6;
