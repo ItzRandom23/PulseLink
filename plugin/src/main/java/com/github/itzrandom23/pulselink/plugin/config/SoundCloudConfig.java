@@ -2,6 +2,7 @@ package com.github.itzrandom23.pulselink.plugin.config;
 
 import com.github.itzrandom23.pulselink.soundcloud.SoundCloudAudioSourceManager;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,24 @@ public class SoundCloudConfig {
 	private int searchLimit = 10;
 	private int userTrackLimit = 25;
 	private String ffmpegPath = "ffmpeg";
+	private String clientId;
+	private HttpProxyConfig proxy;
+
+	public @Nullable String getClientId() {
+		return this.clientId;
+	}
+
+	public void setClientId(@Nullable String clientId) {
+		this.clientId = clientId;
+	}
+
+	public @Nullable HttpProxyConfig getProxy() {
+		return this.proxy;
+	}
+
+	public void setProxy(@Nullable HttpProxyConfig proxy) {
+		this.proxy = proxy;
+	}
 
 	public int getSearchLimit() {
 		return this.searchLimit;
@@ -41,6 +60,7 @@ public class SoundCloudConfig {
 		var config = new SoundCloudAudioSourceManager.SoundCloudConfig();
 		config.setSearchLimit(Math.max(1, this.searchLimit));
 		config.setUserTrackLimit(Math.max(1, this.userTrackLimit));
+		config.setClientId(this.clientId);
 		if (this.ffmpegPath != null && !this.ffmpegPath.isBlank()) {
 			config.setFfmpegPath(this.ffmpegPath);
 		}

@@ -75,6 +75,14 @@ plugins:
     soundcloud:
       searchLimit: 10
       userTrackLimit: 25
+      # Optional. A valid 32-character SoundCloud web client ID skips website discovery.
+      # Leave blank to discover automatically. This is not an OAuth client secret.
+      clientId: ""
+      # Optional. Route SoundCloud's Java HTTP requests through your proxy.
+      # proxy:
+      #   url: "http://localhost:3128"
+      #   username: ""
+      #   password: ""
       # Optional. Defaults to "ffmpeg" from PATH; set an absolute path if needed.
       ffmpegPath: "ffmpeg"
     pandora:

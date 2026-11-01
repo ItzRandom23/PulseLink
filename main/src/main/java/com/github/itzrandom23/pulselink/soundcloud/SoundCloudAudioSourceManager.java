@@ -44,8 +44,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 
 public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager implements HttpConfigurable, AudioSearchManager {
@@ -56,16 +58,28 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 	private static final String SOUNDCLOUD_URL = "https://soundcloud.com";
 	private static final String SEARCH_PREFIX = "scsearch:";
 	private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36";
-	private static final Pattern CLIENT_ID_PATTERN = Pattern.compile("(?:[?&/]?(?:client_id)[\\s:=&]*\"?|\"data\":\\{\"id\":\")([A-Za-z0-9]{32})\"?");
-	private static final Pattern ASSET_PATTERN = Pattern.compile("https://a-v2\\.sndcdn\\.com/assets/[a-zA-Z0-9-]+\\.js");
+	private static final Pattern CLIENT_ID_PATTERN = Pattern.compile("(?:\\bclient_id\\b[\"']?\\s*[:=]\\s*[\"']?|\"data\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*\")([A-Za-z0-9]{32})(?![A-Za-z0-9])");
+	private static final Pattern ASSET_PATTERN = Pattern.compile("https://a-v2\\.sndcdn\\.com/assets/[A-Za-z0-9_./-]+\\.js(?:\\?[^\\s\"'<>]*)?");
 	private static final Set<AudioSearchResult.Type> SEARCH_TYPES = Set.of(AudioSearchResult.Type.TRACK);
+	private static final List<String> CLIENT_ID_DISCOVERY_URLS = List.of(SOUNDCLOUD_URL, SOUNDCLOUD_URL + "/search");
+	private static final long CLIENT_ID_FAILURE_COOLDOWN = TimeUnit.SECONDS.toNanos(30);
 
 	private final SoundCloudConfig config;
+	private final LongSupplier nanoTime;
 	private volatile String clientId;
+	private IOException clientIdDiscoveryFailure;
+	private long clientIdDiscoveryFailureAt;
 
 	public SoundCloudAudioSourceManager(@NotNull SoundCloudConfig config, Function<Void, AudioPlayerManager> audioPlayerManager, MirroringAudioTrackResolver resolver) {
+		this(config, audioPlayerManager, resolver, System::nanoTime);
+	}
+
+	SoundCloudAudioSourceManager(@NotNull SoundCloudConfig config, Function<Void, AudioPlayerManager> audioPlayerManager,
+	                            MirroringAudioTrackResolver resolver, LongSupplier nanoTime) {
 		super(audioPlayerManager, resolver);
 		this.config = config;
+		this.nanoTime = nanoTime;
+		this.clientId = config.getClientId();
 	}
 
 	@NotNull
@@ -451,40 +465,73 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 				return this.clientId;
 			}
 
-			String html = fetchText(SOUNDCLOUD_URL);
-			String direct = findClientId(html);
-			if (direct != null && isValidClientId(direct)) {
-				this.clientId = direct;
-				return direct;
+			if (this.clientIdDiscoveryFailure != null &&
+				nanoTime.getAsLong() - this.clientIdDiscoveryFailureAt < CLIENT_ID_FAILURE_COOLDOWN) {
+				throw clientIdUnavailable(this.clientIdDiscoveryFailure);
 			}
 
-			LinkedHashSet<String> assets = new LinkedHashSet<>();
-			var matcher = ASSET_PATTERN.matcher(html);
-			while (matcher.find()) {
-				assets.add(matcher.group());
-			}
-			for (String asset : assets) {
-				try {
-					String js = fetchText(asset);
-					String clientId = findClientId(js);
-					if (clientId != null && isValidClientId(clientId)) {
-						this.clientId = clientId;
-						return clientId;
-					}
-				} catch (IOException ignored) {
-					// Try the next SoundCloud asset.
-				}
+			try {
+				this.clientId = discoverClientId();
+				this.clientIdDiscoveryFailure = null;
+				return this.clientId;
+			} catch (IOException exception) {
+				this.clientIdDiscoveryFailure = exception;
+				this.clientIdDiscoveryFailureAt = nanoTime.getAsLong();
+				throw clientIdUnavailable(exception);
 			}
 		}
-		throw new FriendlyException("Failed to fetch SoundCloud client id.", FriendlyException.Severity.SUSPICIOUS, null);
 	}
 
-	private String findClientId(String text) {
-		if (text == null) {
-			return null;
+	private FriendlyException clientIdUnavailable(IOException cause) {
+		return new FriendlyException("Unable to discover a SoundCloud client ID. Set plugins.pulselink.soundcloud.clientId " +
+			"or configure plugins.pulselink.soundcloud.proxy if SoundCloud blocks this server. Discovery retries after 30 seconds.",
+			FriendlyException.Severity.COMMON, cause);
+	}
+
+	private String discoverClientId() throws IOException {
+		Set<String> visitedAssets = new LinkedHashSet<>();
+		Set<String> attemptedIds = new LinkedHashSet<>();
+		IOException lastFailure = null;
+		for (String page : CLIENT_ID_DISCOVERY_URLS) {
+			try {
+				String html = fetchText(page);
+				String direct = findValidClientId(html, attemptedIds);
+				if (direct != null) return direct;
+
+				var matcher = ASSET_PATTERN.matcher(html);
+				while (matcher.find()) {
+					String asset = matcher.group();
+					if (!visitedAssets.add(asset)) continue;
+					try {
+						String js = fetchText(asset);
+						String candidate = findValidClientId(js, attemptedIds);
+						if (candidate != null) return candidate;
+					} catch (IOException exception) {
+						if (isTemporaryServerFailure(exception)) throw exception;
+						lastFailure = exception;
+					}
+				}
+			} catch (IOException exception) {
+				// A blocked page can have an accessible alternative; rate limits and
+				// server outages should instead enter the shared cooldown immediately.
+				if (isTemporaryServerFailure(exception)) throw exception;
+				lastFailure = exception;
+			}
 		}
+		throw new IOException("No usable SoundCloud client ID found on the discovery pages or their assets", lastFailure);
+	}
+
+	private String findValidClientId(String text, Set<String> attemptedIds) throws IOException {
 		var matcher = CLIENT_ID_PATTERN.matcher(text);
-		return matcher.find() ? matcher.group(1) : null;
+		while (matcher.find()) {
+			String candidate = matcher.group(1);
+			if (attemptedIds.add(candidate) && isValidClientId(candidate)) return candidate;
+		}
+		return null;
+	}
+
+	private boolean isTemporaryServerFailure(IOException exception) {
+		return exception instanceof SoundCloudHttpException failure && (failure.status == 429 || failure.status >= 500);
 	}
 
 	private JsonBrowser getJson(String url) throws IOException {
@@ -510,6 +557,10 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 			// server errors into an unbounded client-id discovery loop.
 			if (attempt == 0 && (status == 401 || status == 403) &&
 				requestUrl.startsWith(BASE_URL + "/")) {
+				if (this.config.getClientId() != null) {
+					throw new FriendlyException("SoundCloud rejected the configured client ID or blocked this server (HTTP " + status +
+						"). Check plugins.pulselink.soundcloud.clientId and its proxy settings.", FriendlyException.Severity.COMMON, null);
+				}
 				String rejectedId = queryClientId(requestUrl);
 				if (rejectedId != null) {
 					synchronized (this) {
@@ -536,7 +587,7 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 			int status = response.getStatusLine().getStatusCode();
 			if (status == 401 || status == 403) return false;
 			if (!HttpClientTools.isSuccessWithContent(status)) {
-				throw new IOException("SoundCloud client-id validation failed with status " + status);
+				throw new SoundCloudHttpException(status, "SoundCloud client-id validation failed with status " + status);
 			}
 			return true;
 		}
@@ -578,7 +629,7 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 	}
 
 	String fetchText(String url) throws IOException {
-		try (HttpInterface httpInterface = this.httpInterfaceManager.getInterface()) {
+		try (HttpInterface httpInterface = getHttpInterface()) {
 			return fetchText(httpInterface, url);
 		}
 	}
@@ -587,7 +638,7 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		try (CloseableHttpResponse response = httpInterface.execute(createRequest(url))) {
 			int status = response.getStatusLine().getStatusCode();
 			if (status == HttpStatus.SC_NOT_FOUND || !HttpClientTools.isSuccessWithContent(status)) {
-				throw new IOException("SoundCloud request failed with status " + status + ": " + url);
+				throw new SoundCloudHttpException(status, "SoundCloud request failed with status " + status + ": " + url);
 			}
 			return IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
 		}
@@ -756,10 +807,36 @@ public class SoundCloudAudioSourceManager extends MirroringAudioSourceManager im
 		}
 	}
 
+	private static final class SoundCloudHttpException extends IOException {
+		private final int status;
+
+		private SoundCloudHttpException(int status, String message) {
+			super(message);
+			this.status = status;
+		}
+	}
+
 	public static class SoundCloudConfig {
 		private int searchLimit = 10;
 		private int userTrackLimit = 25;
 		private String ffmpegPath = "ffmpeg";
+		private String clientId;
+
+		public @Nullable String getClientId() {
+			return this.clientId;
+		}
+
+		public void setClientId(@Nullable String clientId) {
+			if (clientId == null || clientId.isBlank()) {
+				this.clientId = null;
+				return;
+			}
+			String normalized = clientId.trim();
+			if (!normalized.matches("[A-Za-z0-9]{32}")) {
+				throw new IllegalArgumentException("SoundCloud clientId must contain 32 alphanumeric characters");
+			}
+			this.clientId = normalized;
+		}
 
 		public String getFfmpegPath() {
 			return this.ffmpegPath;

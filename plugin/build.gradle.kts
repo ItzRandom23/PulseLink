@@ -24,6 +24,8 @@ dependencies {
 	testImplementation("org.junit.jupiter:junit-jupiter")
 	testImplementation("org.mockito:mockito-core:5.12.0")
 	testImplementation("org.springframework:spring-test:6.1.8")
+	// Lavalink supplies these APIs at runtime; unit tests need them as well.
+	testImplementation("dev.arbjerg.lavalink:plugin-api:4.0.0")
 }
 
 tasks {

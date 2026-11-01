@@ -200,6 +200,7 @@ public class PulseLinkPlugin implements AudioPlayerManagerConfiguration, SearchM
 				unused -> this.manager,
 				new DefaultMirroringAudioTrackResolver(pluginConfig.getProviders())
 			);
+			proxyConfigurationService.configure(this.soundcloud, soundCloudConfig.getProxy());
 		}
 
 

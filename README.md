@@ -86,6 +86,21 @@ SoundCloud fallback notes:
 - If SoundCloud only exposes a 30-second preview, PulseLink resolves a mirror during load and uses the mirror track duration for the queued SoundCloud track.
 - `scsearch:` may be included in mirror providers: playable full SoundCloud search results are used, while preview-only results are skipped without recursive SoundCloud searching.
 
+SoundCloud client-ID discovery first tries the homepage, then the search page. If discovery fails, PulseLink waits 30 seconds before trying again so concurrent searches do not repeatedly request a blocked website.
+
+If your server receives `403 Forbidden` from SoundCloud's website, you can skip discovery with an existing valid SoundCloud **web** client ID:
+
+```yaml
+plugins:
+  pulselink:
+    soundcloud:
+      clientId: "${SOUNDCLOUD_CLIENT_ID:}"
+```
+
+Use the `client_id` from a working SoundCloud web API request, not an OAuth access token or client secret. A blank value keeps automatic discovery enabled. If a configured ID is rejected, PulseLink reports it without scraping the blocked website or retrying the same ID. Update the value and restart Lavalink.
+
+If SoundCloud also blocks API requests from your server, a client ID alone cannot restore access. You can configure `plugins.pulselink.soundcloud.proxy` with `url` and optional `username` / `password`, using the same proxy configuration as VK Music and Yandex Music. The proxy applies to Java HTTP requests, including discovery, API requests and progressive downloads; FFmpeg's HLS downloads still use its own network configuration. Keep `plugins.pulselink.sources.soundcloud: true` and `scsearch:%QUERY%` in your provider list to use SoundCloud; Lavalink's built-in SoundCloud flag does not control PulseLink's source.
+
 ## Troubleshooting
 
 Common checks:
