@@ -17,7 +17,9 @@ subprojects {
     apply plugin: "java"
     apply plugin: "maven-publish"
 
-    def versionStr = "1.8.2"
+    // Keep this identical to the JitPack dependency version so Lavalink's
+    // plugin manifest check does not trigger a download on every restart.
+    def versionStr = "v1.8.3"
     def isSnapshot = false
     version versionStr
     println "Version: " + versionStr
